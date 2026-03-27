@@ -1,5 +1,5 @@
 const PLAYER_COLORS = ["#E85D4A","#4A90E8","#2ECC71","#F39C12","#9B59B6","#1ABC9C","#E74C3C","#3498DB","#F1C40F","#E67E22"];
-const AMOUNT_BTNS = [100, 500, 1000, 5000, 10000];
+const AMOUNT_BTNS = [100, 500, 1000];
 
 function GoStopApp() {
   const [screen, setScreen] = React.useState("setup");
@@ -89,7 +89,7 @@ function GoStopApp() {
     width: "100%", padding: "10px 12px",
     background: "rgba(0,0,0,0.3)", border: "1px solid rgba(245,200,66,0.2)",
     borderRadius: 8, color: "#f5e6c8", fontSize: 15, fontFamily: "inherit",
-    outline: "none", boxSizing: "border-box", marginBottom: 8,
+    outline: "none", boxSizing: "border-box", marginBottom: 10,
   };
 
   return (
@@ -112,6 +112,7 @@ function GoStopApp() {
         ))}
       </div>
 
+      {/* 설정 */}
       {screen === "setup" && (
         <div>
           <div style={cardStyle}>
@@ -150,6 +151,7 @@ function GoStopApp() {
         </div>
       )}
 
+      {/* 게임 */}
       {screen === "game" && (
         <div>
           <div style={cardStyle}>
@@ -185,28 +187,30 @@ function GoStopApp() {
                   value={inputAmounts[i] === 0 ? "" : inputAmounts[i]}
                   onChange={(e) => setAmount(i, e.target.value)}
                   placeholder="직접 입력"
-                  style={{ ...inputStyle }}
+                  style={inputStyle}
                 />
-                <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 6 }}>
                   {AMOUNT_BTNS.map(v => (
-                    <div key={v} style={{ display: "flex", gap: 2, flex: "1 1 auto" }}>
+                    <div key={v} style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
                       <button onClick={() => adjustAmount(i, v)} style={{
-                        flex: 1, padding: "6px 2px", border: "none", borderRadius: 5,
-                        background: "rgba(46,204,113,0.18)", color: "#2ECC71",
-                        fontFamily: "inherit", fontSize: 11, cursor: "pointer", fontWeight: 700,
+                        width: "100%", padding: "12px 0", border: "none", borderRadius: 8,
+                        background: "rgba(46,204,113,0.2)", color: "#2ECC71",
+                        fontFamily: "inherit", fontSize: 15, cursor: "pointer", fontWeight: 700,
                       }}>+{v >= 1000 ? (v/1000)+"K" : v}</button>
                       <button onClick={() => adjustAmount(i, -v)} style={{
-                        flex: 1, padding: "6px 2px", border: "none", borderRadius: 5,
-                        background: "rgba(232,93,74,0.18)", color: "#E85D4A",
-                        fontFamily: "inherit", fontSize: 11, cursor: "pointer", fontWeight: 700,
+                        width: "100%", padding: "12px 0", border: "none", borderRadius: 8,
+                        background: "rgba(232,93,74,0.2)", color: "#E85D4A",
+                        fontFamily: "inherit", fontSize: 15, cursor: "pointer", fontWeight: 700,
                       }}>-{v >= 1000 ? (v/1000)+"K" : v}</button>
                     </div>
                   ))}
-                  <button onClick={() => setAmount(i, 0)} style={{
-                    padding: "6px 8px", border: "none", borderRadius: 5,
-                    background: "rgba(255,255,255,0.06)", color: "#a07850",
-                    fontFamily: "inherit", fontSize: 11, cursor: "pointer",
-                  }}>초기화</button>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <button onClick={() => setAmount(i, 0)} style={{
+                      padding: "12px 10px", border: "none", borderRadius: 8,
+                      background: "rgba(255,255,255,0.06)", color: "#a07850",
+                      fontFamily: "inherit", fontSize: 12, cursor: "pointer",
+                    }}>초기화</button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -262,6 +266,7 @@ function GoStopApp() {
         </div>
       )}
 
+      {/* 정산 */}
       {screen === "result" && (
         <div>
           <div style={cardStyle}>
