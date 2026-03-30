@@ -135,7 +135,7 @@ function streetLabel(s) {
 // 메인 앱
 // ──────────────────────────────────────────────────────────
 function GoStopApp() {
-  const [gameType, setGameType] = React.useState("holdem");
+  const [gameType, setGameType] = React.useState("gostop");
   const [screen,   setScreen]   = React.useState("setup");
   const [players,  setPlayers]  = React.useState(["플레이어 1", "플레이어 2", "플레이어 3"]);
 
@@ -148,6 +148,7 @@ function GoStopApp() {
   const [blinds,    setBlinds]    = React.useState({ small: 500, big: 1000 });
   const [anteAmt,   setAnteAmt]   = React.useState(0);
   const [dealerIdx, setDealerIdx] = React.useState(0);
+  const [buyIn,     setBuyIn]     = React.useState(50000); // 인당 시작 충전금액
 
   // ── 홀덤 게임 state ────
   // street: preflop|flop|turn|river|showdown
@@ -377,9 +378,13 @@ function GoStopApp() {
       log.push({ player: i, action: `레이즈 +${raiseBy.toLocaleString()}`, amount: total });
 
     } else if (action === "allin") {
-      nb[i]  += callAmt;
-      ntb[i] += callAmt;
-      np     += callAmt;
+      // buyIn 기준 실제 남은 칩 계산 (이전 핸드 손익 포함)
+      const prevPnl    = totalAmounts[i] || 0;
+      const stackLeft  = buyIn > 0 ? (buyIn + prevPnl - ntb[i]) : 0;
+      const allinAmt   = buyIn > 0 ? Math.max(stackLeft, callAmt) : callAmt;
+      nb[i]  += allinAmt;
+      ntb[i] += allinAmt;
+      np     += allinAmt;
       na[i]   = true;
       log.push({ player: i, action: "올인!", amount: nb[i] });
     }
@@ -462,14 +467,14 @@ function GoStopApp() {
 
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "20px 0 16px" }}>
-        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴 정산기</div>
+        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴🃏 정산기</div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게</div>
       </div>
 
       {/* 게임 탭 */}
       <div style={{ display: "flex", background: C.bg2, border: `1px solid ${C.border}`,
         borderRadius: 12, padding: 4, marginBottom: 14, gap: 4 }}>
-        {[["holdem","🃏 홀덤"],["gostop","🀄 고스톱"]].map(([type, label]) => (
+        {[["gostop","🀄 고스톱"],["holdem","🃏 홀덤"]].map(([type, label]) => (
           <button key={type} onClick={() => switchGame(type)} style={{
             flex: 1, padding: 10, border: gameType === type ? `1px solid ${C.border2}` : "1px solid transparent",
             background: gameType === type ? C.bg3 : "transparent",
@@ -533,6 +538,42 @@ function GoStopApp() {
           {/* 홀덤 설정 */}
           {gameType === "holdem" && (
             <>
+              {/* 인당 시작 충전금액 */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={S.sectionLabel}>인당 시작 충전금액 (바이인)</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                  {[10000, 30000, 50000, 100000, 200000].map(a => (
+                    <button key={a} onClick={() => setBuyIn(a)} style={{
+                      padding: "7px 10px", fontSize: 11, borderRadius: 8, cursor: "pointer",
+                      fontFamily: "inherit",
+                      border: `1px solid ${buyIn === a ? C.border2 : C.border}`,
+                      background: buyIn === a ? "rgba(200,160,80,0.18)" : C.bg3,
+                      color: buyIn === a ? C.gold2 : C.text,
+                    }}>
+                      {(a / 10000).toFixed(0)}만
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="number"
+                    value={buyIn}
+                    onChange={e => setBuyIn(Number(e.target.value) || 0)}
+                    style={{
+                      flex: 1, padding: "8px 10px", background: C.bg3,
+                      border: `1px solid ${C.border2}`, borderRadius: 8,
+                      color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit",
+                    }}
+                  />
+                  <span style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>원</span>
+                </div>
+                {buyIn > 0 && (
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    총 충전액: {(buyIn * n).toLocaleString()}원 ({n}명 × {buyIn.toLocaleString()}원)
+                  </div>
+                )}
+              </div>
+
               {/* 블라인드 + 앤티 2열 */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                 <div>
@@ -693,6 +734,13 @@ function GoStopApp() {
                         <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                           현재: <b style={{ color: C.gold2 }}>{(bets[i]||0).toLocaleString()}원</b>
                           <span style={{ marginLeft: 8 }}>누적: <b style={{ color: C.text }}>{(totalBets[i]||0).toLocaleString()}원</b></span>
+                          {buyIn > 0 && (
+                            <span style={{ marginLeft: 8 }}>
+                              잔여: <b style={{ color: buyIn - (totalBets[i]||0) > 0 ? C.gold2 : C.red }}>
+                                {(buyIn - (totalBets[i]||0) + (totalAmounts[i]||0)).toLocaleString()}원
+                              </b>
+                            </span>
+                          )}
                         </div>
                       </div>
                       {isAct && !isDead && mb > (bets[i]||0) && (
@@ -981,6 +1029,7 @@ function GoStopApp() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
             {players.map((p, i) => {
               const amt = gameType === "holdem" ? (totalAmounts[i]||0) : gostopTotals[i];
+              const remaining = gameType === "holdem" && buyIn > 0 ? buyIn + amt : null;
               return (
                 <div key={i} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
                   <div style={{ fontSize: 11, color: C.muted }}>{p}</div>
@@ -988,6 +1037,13 @@ function GoStopApp() {
                     color: amt > 0 ? C.green : amt < 0 ? C.red : C.muted }}>
                     {amt > 0 ? "+" : ""}{amt.toLocaleString()}원
                   </div>
+                  {remaining !== null && (
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                      잔여: <span style={{ color: remaining >= 0 ? C.gold2 : C.red, fontWeight: "bold" }}>
+                        {remaining.toLocaleString()}원
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
