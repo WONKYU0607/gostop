@@ -252,25 +252,32 @@ function GoStopApp() {
       log.push({ player: -1, action: "앤티", amount: anteAmt * nn });
     }
 
-    // SB / BB
-    initBets[sb]      = blinds.small;  initTotalBets[sb]  += blinds.small;
-    initBets[bb]      = blinds.big;    initTotalBets[bb]  += blinds.big;
-    initPot          += blinds.small + blinds.big;
-    log.push({ player: sb, action: "SB", amount: blinds.small });
-    log.push({ player: bb, action: "BB", amount: blinds.big });
-
-    // 프리플랍 첫 액션: UTG (BB 다음)
-    let utg = (bb + 1) % nn;
-    let tries = 0;
-    while ((initFolded[utg] || initAllin[utg]) && tries < nn) {
-      utg = (utg + 1) % nn; tries++;
+    // SB / BB (블라인드 없음이면 스킵)
+    let firstAction, lastRaiserInit;
+    if (blinds.small === 0) {
+      firstAction    = (dealerIdx + 1) % nn;
+      lastRaiserInit = firstAction;
+    } else {
+      initBets[sb]      = blinds.small;  initTotalBets[sb]  += blinds.small;
+      initBets[bb]      = blinds.big;    initTotalBets[bb]  += blinds.big;
+      initPot          += blinds.small + blinds.big;
+      log.push({ player: sb, action: "SB", amount: blinds.small });
+      log.push({ player: bb, action: "BB", amount: blinds.big });
+      let utg = (bb + 1) % nn;
+      let tries = 0;
+      while ((initFolded[utg] || initAllin[utg]) && tries < nn) {
+        utg = (utg + 1) % nn; tries++;
+      }
+      firstAction    = utg;
+      lastRaiserInit = bb;
     }
 
-    setSbIdx(sb); setBbIdx(bb);
+    setSbIdx(blinds.small === 0 ? -1 : sb);
+    setBbIdx(blinds.small === 0 ? -1 : bb);
     setBets(initBets); setTotalBets(initTotalBets);
     setFolded(initFolded); setAllin(initAllin);
     setPot(initPot); setStreet("preflop");
-    setActionIdx(utg); setLastRaiser(bb);
+    setActionIdx(firstAction); setLastRaiser(lastRaiserInit);
     setActionLog(log); setHandActive(true); setHandOver(false);
     setAutoWinner([]); setShowdownWinners([]);
     setBoardStage(0); setRaiseInput("");
@@ -526,53 +533,58 @@ function GoStopApp() {
           {/* 홀덤 설정 */}
           {gameType === "holdem" && (
             <>
-              <div style={{ marginBottom: 10 }}>
-                <div style={S.sectionLabel}>블라인드 (스몰/빅)</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[[100,200],[250,500],[500,1000],[1000,2000]].map(([sb,bb]) => (
-                    <button key={sb} onClick={() => setBlinds({ small: sb, big: bb })}
-                      style={{
-                        flex: 1, padding: "8px 4px", fontSize: 11, borderRadius: 8, cursor: "pointer",
-                        fontFamily: "inherit", textAlign: "center",
-                        border: `1px solid ${blinds.small === sb ? C.border2 : C.border}`,
-                        background: blinds.small === sb ? "rgba(200,160,80,0.18)" : C.bg3,
-                        color: blinds.small === sb ? C.gold2 : C.text,
-                      }}>
-                      <div>{sb.toLocaleString()}</div>
-                      <div style={{ color: C.muted, fontSize: 10 }}>/{bb.toLocaleString()}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <div style={S.sectionLabel}>앤티</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {[0, 100, 500, 1000, 5000].map(a => (
-                    <button key={a} onClick={() => setAnteAmt(a)} style={{
-                      flex: 1, padding: "8px 4px", fontSize: 11, borderRadius: 8, cursor: "pointer",
-                      fontFamily: "inherit",
-                      border: `1px solid ${anteAmt === a ? C.border2 : C.border}`,
-                      background: anteAmt === a ? "rgba(200,160,80,0.18)" : C.bg3,
-                      color: anteAmt === a ? C.gold2 : C.text,
-                    }}>
-                      {a === 0 ? "없음" : `${a.toLocaleString()}`}
-                    </button>
-                  ))}
-                </div>
-                {anteAmt > 0 && (
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
-                    시작 팟: {(anteAmt * n).toLocaleString()}원 ({n}명 × {anteAmt.toLocaleString()})
+              {/* 블라인드 + 앤티 2열 */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div>
+                  <div style={S.sectionLabel}>블라인드 (SB/BB)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {[[0,0],[100,200],[250,500],[500,1000],[1000,2000]].map(([sb,bb]) => {
+                      const isNone = sb === 0;
+                      const active = isNone ? (blinds.small === 0) : (blinds.small === sb);
+                      return (
+                        <button key={sb} onClick={() => setBlinds({ small: sb, big: bb })}
+                          style={{
+                            padding: "7px 8px", fontSize: 11, borderRadius: 8, cursor: "pointer",
+                            fontFamily: "inherit", textAlign: "center",
+                            border: `1px solid ${active ? C.border2 : C.border}`,
+                            background: active ? "rgba(200,160,80,0.18)" : C.bg3,
+                            color: active ? C.gold2 : C.text,
+                          }}>
+                          {isNone ? "없음" : `${sb.toLocaleString()} / ${bb.toLocaleString()}`}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+                <div>
+                  <div style={S.sectionLabel}>앤티</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {[0, 100, 500, 1000, 5000].map(a => (
+                      <button key={a} onClick={() => setAnteAmt(a)} style={{
+                        padding: "7px 8px", fontSize: 11, borderRadius: 8, cursor: "pointer",
+                        fontFamily: "inherit", textAlign: "center",
+                        border: `1px solid ${anteAmt === a ? C.border2 : C.border}`,
+                        background: anteAmt === a ? "rgba(200,160,80,0.18)" : C.bg3,
+                        color: anteAmt === a ? C.gold2 : C.text,
+                      }}>
+                        {a === 0 ? "없음" : `${a.toLocaleString()}원`}
+                      </button>
+                    ))}
+                  </div>
+                  {anteAmt > 0 && (
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
+                      시작팟 {(anteAmt * n).toLocaleString()}원
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{ marginBottom: 10 }}>
                 <div style={S.sectionLabel}>딜러 버튼 위치</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {players.map((p, i) => (
                     <button key={i} onClick={() => setDealerIdx(i)}
-                      style={{ ...S.miniBtn(dealerIdx === i, null), padding: "6px 12px" }}>
+                      style={{ ...S.miniBtn(dealerIdx === i, null), padding: "5px 10px", fontSize: 11 }}>
                       {p}
                     </button>
                   ))}
