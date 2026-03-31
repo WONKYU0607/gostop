@@ -31,28 +31,28 @@ const S = {
   card: {
     background: C.bg2,
     border: `1px solid ${C.border}`,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "bold",
     color: C.muted,
     textTransform: "uppercase",
     letterSpacing: "0.8px",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   playerRow: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    padding: "10px 0",
+    gap: 8,
+    padding: "8px 0",
     borderBottom: `1px solid ${C.border}`,
   },
   primaryBtn: {
     width: "100%",
-    padding: 13,
+    padding: 11,
     border: "none",
     borderRadius: 10,
     background: C.gold,
@@ -60,12 +60,12 @@ const S = {
     fontSize: 14,
     fontWeight: "bold",
     cursor: "pointer",
-    marginTop: 10,
+    marginTop: 8,
     fontFamily: "inherit",
     letterSpacing: "0.3px",
   },
   miniBtn: (active, variant) => ({
-    padding: "5px 10px",
+    padding: "5px 8px",
     border: `1px solid ${
       variant === "danger"  ? "rgba(224,90,90,0.4)"   :
       variant === "success" ? "rgba(78,203,138,0.4)"  :
@@ -74,7 +74,7 @@ const S = {
       active                ? C.border2 : C.border
     }`,
     background: active ? "rgba(200,160,80,0.15)" : C.bg3,
-    borderRadius: 8,
+    borderRadius: 7,
     cursor: "pointer",
     fontSize: 12,
     color: variant === "danger"  ? C.red    :
@@ -87,7 +87,7 @@ const S = {
   }),
 };
 
-function Avatar({ i, name, size = 34 }) {
+function Avatar({ i, name, size = 28 }) {
   const c = PLAYER_COLORS[i % 8];
   return (
     <div style={{
@@ -466,18 +466,18 @@ function GoStopApp() {
   // 렌더
   // ──────────────────────────────────────────────────────────
   return (
-    <div style={{ width: "100%", maxWidth: 480, padding: "16px 16px 80px", margin: "0 auto",
-      background: C.bg1, minHeight: "100vh", fontFamily: "'Segoe UI', sans-serif", color: C.text }}>
+    <div style={{ width: "100%", maxWidth: "100vw", boxSizing: "border-box", padding: "12px 12px 80px", margin: "0 auto",
+      background: C.bg1, minHeight: "100vh", fontFamily: "'Segoe UI', sans-serif", color: C.text, overflowX: "hidden" }}>
 
       {/* 헤더 */}
-      <div style={{ textAlign: "center", padding: "20px 0 16px" }}>
+      <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
         <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴🃏 정산기</div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게</div>
       </div>
 
       {/* 게임 탭 */}
       <div style={{ display: "flex", background: C.bg2, border: `1px solid ${C.border}`,
-        borderRadius: 12, padding: 4, marginBottom: 14, gap: 4 }}>
+        borderRadius: 12, padding: 4, marginBottom: 10, gap: 4 }}>
         {[["gostop","🀄 고스톱"],["holdem","🃏 홀덤"]].map(([type, label]) => (
           <button key={type} onClick={() => switchGame(type)} style={{
             flex: 1, padding: 10, border: gameType === type ? `1px solid ${C.border2}` : "1px solid transparent",
@@ -489,7 +489,7 @@ function GoStopApp() {
       </div>
 
       {/* 화면 탭 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[["setup","설정"],["game","게임"],["result","정산"]].map(([s, label]) => (
           <button key={s} onClick={() => setScreen(s)} style={{
             flex: 1, padding: "9px 4px", fontSize: 12, fontFamily: "inherit",
@@ -571,7 +571,7 @@ function GoStopApp() {
                               <button key={u}
                                 onClick={() => { const nb = [...buyIns]; nb[i] += u; setBuyIns(nb); }}
                                 style={{
-                                  flex: 1, padding: "10px 4px", borderRadius: 8, cursor: "pointer",
+                                  flex: 1, padding: "8px 4px", borderRadius: 8, cursor: "pointer",
                                   fontFamily: "inherit", textAlign: "center",
                                   border: `1px solid ${C.border}`,
                                   background: C.bg3,
