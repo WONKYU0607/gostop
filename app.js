@@ -509,24 +509,33 @@ function GoStopApp() {
           <div style={S.sectionLabel}>참가자 (최대 8명)</div>
           <div style={S.card}>
             {players.map((p, i) => (
-              <div key={i} style={{ ...S.playerRow, ...(i === n - 1 ? { borderBottom: "none" } : {}) }}>
-                <Avatar i={i} name={p} />
-                {gameType === "holdem" && dealerIdx === i &&
-                  <span style={{ fontSize: 10, background: "rgba(200,160,80,0.2)", color: C.gold2,
-                    padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>D</span>}
-                {gameType === "holdem" && ((dealerIdx + 1) % n) === i &&
-                  <span style={{ fontSize: 10, background: "rgba(90,158,240,0.15)", color: C.blue,
-                    padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>SB</span>}
-                {gameType === "holdem" && ((dealerIdx + 2) % n) === i &&
-                  <span style={{ fontSize: 10, background: "rgba(78,203,138,0.15)", color: C.green,
-                    padding: "1px 6px", borderRadius: 10, flexShrink: 0 }}>BB</span>}
-                <input value={p} onChange={e => renamePlayer(i, e.target.value)} style={{
-                  flex: 1, border: "none", background: "transparent", color: C.text,
-                  fontSize: 14, fontWeight: "bold", borderBottom: `1px solid ${C.border}`,
-                  outline: "none", fontFamily: "inherit", paddingBottom: 2,
-                }} />
+              <div key={i} style={{ padding: "8px 0", borderBottom: i < n - 1 ? `1px solid ${C.border}` : "none" }}>
+                {/* 윗줄: 아바타 + 배지 + 이름 입력 */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Avatar i={i} name={p} />
+                  {gameType === "holdem" && dealerIdx === i &&
+                    <span style={{ fontSize: 9, background: "rgba(200,160,80,0.2)", color: C.gold2,
+                      padding: "1px 5px", borderRadius: 8, flexShrink: 0 }}>D</span>}
+                  {gameType === "holdem" && ((dealerIdx + 1) % n) === i &&
+                    <span style={{ fontSize: 9, background: "rgba(90,158,240,0.15)", color: C.blue,
+                      padding: "1px 5px", borderRadius: 8, flexShrink: 0 }}>SB</span>}
+                  {gameType === "holdem" && ((dealerIdx + 2) % n) === i &&
+                    <span style={{ fontSize: 9, background: "rgba(78,203,138,0.15)", color: C.green,
+                      padding: "1px 5px", borderRadius: 8, flexShrink: 0 }}>BB</span>}
+                  <input value={p} onChange={e => renamePlayer(i, e.target.value)} style={{
+                    flex: 1, minWidth: 0, border: "none", background: "transparent", color: C.text,
+                    fontSize: 14, fontWeight: "bold", borderBottom: `1px solid ${C.border}`,
+                    outline: "none", fontFamily: "inherit", paddingBottom: 2,
+                  }} />
+                </div>
+                {/* 아랫줄: 삭제 버튼 (오른쪽 정렬) */}
                 {n > 2 && (
-                  <button onClick={() => removePlayer(i)} style={S.miniBtn(false, "danger")}>삭제</button>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                    <button onClick={() => removePlayer(i)}
+                      style={{ ...S.miniBtn(false, "danger"), fontSize: 11, padding: "3px 12px" }}>
+                      삭제
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
