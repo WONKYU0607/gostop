@@ -573,9 +573,9 @@ function GoStopApp() {
                                 style={{
                                   flex: 1, padding: "10px 4px", borderRadius: 8, cursor: "pointer",
                                   fontFamily: "inherit", textAlign: "center",
-                                  border: `1px solid ${buyIns[i] >= u ? C.border2 : C.border}`,
-                                  background: buyIns[i] >= u ? "rgba(200,160,80,0.12)" : C.bg3,
-                                  color: buyIns[i] >= u ? C.gold2 : C.muted,
+                                  border: `1px solid ${C.border}`,
+                                  background: C.bg3,
+                                  color: C.text,
                                   fontSize: 12, fontWeight: "bold",
                                 }}>
                                 <div>{label}</div>
