@@ -148,7 +148,7 @@ function GoStopApp() {
   const [blinds,    setBlinds]    = React.useState({ small: 500, big: 1000 });
   const [anteAmt,   setAnteAmt]   = React.useState(0);
   const [dealerIdx, setDealerIdx] = React.useState(0);
-  const [buyIn,     setBuyIn]     = React.useState(50000); // 인당 시작 충전금액
+  const [buyIns,    setBuyIns]    = React.useState([0, 0, 0]); // 플레이어별 바이인
 
   // ── 홀덤 게임 state ────
   // street: preflop|flop|turn|river|showdown
@@ -191,17 +191,20 @@ function GoStopApp() {
     setGameType(type); setScreen("setup");
     setRounds([]); setInputAmounts(Array(players.length).fill(0));
     resetHand(); setHandHistory([]); setInputError("");
+    setBuyIns(Array(players.length).fill(0));
   }
 
   function addPlayer() {
     if (n >= 8) return;
     setPlayers([...players, `플레이어 ${n + 1}`]);
     setInputAmounts([...inputAmounts, 0]);
+    setBuyIns([...buyIns, 0]);
   }
   function removePlayer(i) {
     if (n <= 2) return;
     setPlayers(players.filter((_, j) => j !== i));
     setInputAmounts(inputAmounts.filter((_, j) => j !== i));
+    setBuyIns(buyIns.filter((_, j) => j !== i));
   }
   function renamePlayer(i, val) {
     const p = [...players]; p[i] = val; setPlayers(p);
@@ -378,10 +381,11 @@ function GoStopApp() {
       log.push({ player: i, action: `레이즈 +${raiseBy.toLocaleString()}`, amount: total });
 
     } else if (action === "allin") {
-      // buyIn 기준 실제 남은 칩 계산 (이전 핸드 손익 포함)
+      // buyIns 기준 실제 남은 칩 계산 (이전 핸드 손익 포함)
       const prevPnl    = totalAmounts[i] || 0;
-      const stackLeft  = buyIn > 0 ? (buyIn + prevPnl - ntb[i]) : 0;
-      const allinAmt   = buyIn > 0 ? Math.max(stackLeft, callAmt) : callAmt;
+      const myBuyIn    = buyIns[i] || 0;
+      const stackLeft  = myBuyIn > 0 ? (myBuyIn + prevPnl - ntb[i]) : 0;
+      const allinAmt   = myBuyIn > 0 ? Math.max(stackLeft, callAmt) : callAmt;
       nb[i]  += allinAmt;
       ntb[i] += allinAmt;
       np     += allinAmt;
@@ -538,38 +542,57 @@ function GoStopApp() {
           {/* 홀덤 설정 */}
           {gameType === "holdem" && (
             <>
-              {/* 인당 시작 충전금액 */}
+              {/* 플레이어별 바이인 */}
               <div style={{ marginBottom: 12 }}>
-                <div style={S.sectionLabel}>인당 시작 충전금액 (바이인)</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                  {[10000, 30000, 50000, 100000, 200000].map(a => (
-                    <button key={a} onClick={() => setBuyIn(a)} style={{
-                      padding: "7px 10px", fontSize: 11, borderRadius: 8, cursor: "pointer",
-                      fontFamily: "inherit",
-                      border: `1px solid ${buyIn === a ? C.border2 : C.border}`,
-                      background: buyIn === a ? "rgba(200,160,80,0.18)" : C.bg3,
-                      color: buyIn === a ? C.gold2 : C.text,
-                    }}>
-                      {(a / 10000).toFixed(0)}만
-                    </button>
-                  ))}
+                <div style={S.sectionLabel}>플레이어별 바이인</div>
+                <div style={S.card}>
+                  {players.map((p, i) => {
+                    const units = [1000, 5000, 10000, 50000];
+                    return (
+                      <div key={i} style={{ ...S.playerRow, flexDirection: "column", alignItems: "stretch",
+                        ...(i === n - 1 ? { borderBottom: "none" } : {}) }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <Avatar i={i} name={p} size={28} />
+                          <span style={{ flex: 1, fontWeight: "bold", fontSize: 14 }}>{p}</span>
+                          <span style={{ fontSize: 15, fontWeight: "bold",
+                            color: buyIns[i] > 0 ? C.gold2 : C.muted }}>
+                            {buyIns[i] > 0 ? buyIns[i].toLocaleString() + "원" : "미설정"}
+                          </span>
+                          {buyIns[i] > 0 && (
+                            <button onClick={() => { const nb = [...buyIns]; nb[i] = 0; setBuyIns(nb); }}
+                              style={{ ...S.miniBtn(false, "danger"), fontSize: 11, padding: "3px 8px" }}>초기화</button>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 5 }}>
+                          {units.map(u => {
+                            const count = Math.floor(buyIns[i] / u) % (u === 50000 ? 10 : u === 10000 ? 5 : u === 5000 ? 10 : 10);
+                            const label = u >= 10000 ? (u/10000)+"만" : (u/1000)+"천";
+                            return (
+                              <button key={u}
+                                onClick={() => { const nb = [...buyIns]; nb[i] += u; setBuyIns(nb); }}
+                                style={{
+                                  flex: 1, padding: "10px 4px", borderRadius: 8, cursor: "pointer",
+                                  fontFamily: "inherit", textAlign: "center",
+                                  border: `1px solid ${buyIns[i] >= u ? C.border2 : C.border}`,
+                                  background: buyIns[i] >= u ? "rgba(200,160,80,0.12)" : C.bg3,
+                                  color: buyIns[i] >= u ? C.gold2 : C.muted,
+                                  fontSize: 12, fontWeight: "bold",
+                                }}>
+                                <div>{label}</div>
+                                <div style={{ fontSize: 10, marginTop: 2, color: C.muted }}>
+                                  ×{Math.floor(buyIns[i] / u)}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input
-                    type="number"
-                    value={buyIn}
-                    onChange={e => setBuyIn(Number(e.target.value) || 0)}
-                    style={{
-                      flex: 1, padding: "8px 10px", background: C.bg3,
-                      border: `1px solid ${C.border2}`, borderRadius: 8,
-                      color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit",
-                    }}
-                  />
-                  <span style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>원</span>
-                </div>
-                {buyIn > 0 && (
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                    총 충전액: {(buyIn * n).toLocaleString()}원 ({n}명 × {buyIn.toLocaleString()}원)
+                {buyIns.some(b => b > 0) && (
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2, marginBottom: 8 }}>
+                    총 충전액: {buyIns.reduce((a,b)=>a+b,0).toLocaleString()}원
                   </div>
                 )}
               </div>
@@ -661,242 +684,229 @@ function GoStopApp() {
             </div>
           ) : (
             <>
-              {/* 스트리트 진행 바 */}
-              <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
-                {["preflop","flop","turn","river"].map(s => (
-                  <div key={s} style={{
-                    flex: 1, padding: "5px 2px", textAlign: "center", fontSize: 10, borderRadius: 6,
-                    background: street === s ? "rgba(200,160,80,0.2)" :
-                      ["preflop","flop","turn","river"].indexOf(s) <
-                      ["preflop","flop","turn","river"].indexOf(street)
-                        ? "rgba(78,203,138,0.1)" : C.bg2,
-                    color: street === s ? C.gold2 : C.muted,
-                    border: `1px solid ${street === s ? C.border2 : C.border}`,
-                  }}>{streetLabel(s)}</div>
-                ))}
-              </div>
-
-              {/* 팟 */}
-              <div style={{ textAlign: "center", background: "rgba(200,160,80,0.08)",
-                border: `1px solid rgba(200,160,80,0.25)`, borderRadius: 14, padding: "16px 20px", marginBottom: 14 }}>
-                <div style={{ fontSize: 30, fontWeight: "bold", color: C.gold2 }}>
-                  {pot.toLocaleString()}원
+              {/* 스트리트 바 + 팟 한 줄 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ display: "flex", gap: 3, flex: 1 }}>
+                  {["preflop","flop","turn","river"].map(s => (
+                    <div key={s} style={{
+                      flex: 1, padding: "4px 2px", textAlign: "center", fontSize: 9, borderRadius: 6,
+                      background: street === s ? "rgba(200,160,80,0.2)" :
+                        ["preflop","flop","turn","river"].indexOf(s) <
+                        ["preflop","flop","turn","river"].indexOf(street)
+                          ? "rgba(78,203,138,0.1)" : C.bg2,
+                      color: street === s ? C.gold2 : C.muted,
+                      border: `1px solid ${street === s ? C.border2 : C.border}`,
+                    }}>{streetLabel(s)}</div>
+                  ))}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>현재 팟</div>
-                {allin.some(Boolean) && (
-                  <div style={{ fontSize: 11, color: C.purple, marginTop: 4 }}>⚡ 올인 플레이어 있음</div>
-                )}
+                <div style={{ background: "rgba(200,160,80,0.1)", border: `1px solid rgba(200,160,80,0.3)`,
+                  borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: "bold", color: C.gold2 }}>{pot.toLocaleString()}원</div>
+                  <div style={{ fontSize: 9, color: C.muted }}>팟{allin.some(Boolean) ? " ⚡올인" : ""}</div>
+                </div>
               </div>
 
-              {/* 커뮤니티 카드 */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+              {/* 커뮤니티 카드 (작게) */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 5, marginBottom: 10 }}>
                 {[1,2,3,4,5].map(ci => (
                   <div key={ci} style={{
-                    width: 38, height: 54, borderRadius: 6,
+                    width: 32, height: 46, borderRadius: 5,
                     border: `1px solid ${ci <= boardStage ? C.border2 : C.border}`,
                     background: ci <= boardStage ? "rgba(200,160,80,0.1)" : C.bg2,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: ci <= boardStage ? 22 : 12,
-                    color: ci <= boardStage ? C.gold2 : C.muted,
-                  }}>
-                    {ci <= boardStage ? "🂠" : ""}
-                  </div>
+                    fontSize: ci <= boardStage ? 18 : 10, color: ci <= boardStage ? C.gold2 : C.muted,
+                  }}>{ci <= boardStage ? "🂠" : ""}</div>
                 ))}
               </div>
 
-              {/* 플레이어 상태 */}
-              <div style={S.sectionLabel}>플레이어 베팅 현황</div>
-              <div style={S.card}>
-                {players.map((name, i) => {
-                  const isAct  = actionIdx === i;
-                  const isDead = folded[i];
-                  const isAI   = allin[i];
-                  const mb     = getMaxBet(bets);
-                  return (
-                    <div key={i} style={{
-                      ...S.playerRow, opacity: isDead ? 0.3 : 1,
-                      background: isAct ? "rgba(200,160,80,0.07)" : "transparent",
-                      borderRadius: isAct ? 8 : 0,
-                      padding: isAct ? "10px 8px" : "10px 0",
-                      ...(i === n - 1 ? { borderBottom: "none" } : {})
-                    }}>
-                      <Avatar i={i} name={name} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: "bold", fontSize: 14 }}>{name}</span>
-                          {dealerIdx === i && <span style={{ fontSize: 9, background: "rgba(200,160,80,0.2)", color: C.gold2, padding: "1px 5px", borderRadius: 8 }}>D</span>}
-                          {sbIdx === i      && <span style={{ fontSize: 9, background: "rgba(90,158,240,0.15)", color: C.blue, padding: "1px 5px", borderRadius: 8 }}>SB</span>}
-                          {bbIdx === i      && <span style={{ fontSize: 9, background: "rgba(78,203,138,0.15)", color: C.green, padding: "1px 5px", borderRadius: 8 }}>BB</span>}
-                          {isDead           && <span style={{ fontSize: 9, background: "rgba(224,90,90,0.15)", color: C.red, padding: "1px 5px", borderRadius: 8 }}>다이</span>}
-                          {isAI             && <span style={{ fontSize: 9, background: "rgba(176,127,240,0.15)", color: C.purple, padding: "1px 5px", borderRadius: 8 }}>올인</span>}
-                          {isAct && !isDead && <span style={{ fontSize: 9, background: "rgba(200,160,80,0.2)", color: C.gold2, padding: "1px 5px", borderRadius: 8 }}>← 차례</span>}
+              {/* 2단 레이아웃: 왼쪽=플레이어 현황, 오른쪽=액션패널 */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+
+                {/* 왼쪽: 플레이어 베팅 현황 */}
+                <div>
+                  <div style={S.sectionLabel}>플레이어 베팅 현황</div>
+                  <div style={{ ...S.card, padding: 10 }}>
+                    {players.map((name, i) => {
+                      const isAct  = actionIdx === i;
+                      const isDead = folded[i];
+                      const isAI   = allin[i];
+                      const myBuyIn = buyIns[i] || 0;
+                      const prevPnl = totalAmounts[i] || 0;
+                      const stack   = myBuyIn > 0 ? myBuyIn + prevPnl - (totalBets[i]||0) : null;
+                      return (
+                        <div key={i} style={{
+                          display: "flex", alignItems: "flex-start", gap: 6,
+                          padding: "7px 0", opacity: isDead ? 0.3 : 1,
+                          background: isAct ? "rgba(200,160,80,0.07)" : "transparent",
+                          borderRadius: isAct ? 6 : 0,
+                          borderBottom: i < n - 1 ? `1px solid ${C.border}` : "none",
+                        }}>
+                          <Avatar i={i} name={name} size={26} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+                              <span style={{ fontWeight: "bold", fontSize: 12 }}>{name}</span>
+                              {dealerIdx === i && <span style={{ fontSize: 8, background: "rgba(200,160,80,0.2)", color: C.gold2, padding: "0px 4px", borderRadius: 6 }}>D</span>}
+                              {sbIdx === i      && <span style={{ fontSize: 8, background: "rgba(90,158,240,0.15)", color: C.blue, padding: "0px 4px", borderRadius: 6 }}>SB</span>}
+                              {bbIdx === i      && <span style={{ fontSize: 8, background: "rgba(78,203,138,0.15)", color: C.green, padding: "0px 4px", borderRadius: 6 }}>BB</span>}
+                              {isDead           && <span style={{ fontSize: 8, background: "rgba(224,90,90,0.15)", color: C.red, padding: "0px 4px", borderRadius: 6 }}>다이</span>}
+                              {isAI             && <span style={{ fontSize: 8, background: "rgba(176,127,240,0.15)", color: C.purple, padding: "0px 4px", borderRadius: 6 }}>올인</span>}
+                              {isAct && !isDead && <span style={{ fontSize: 8, background: "rgba(200,160,80,0.2)", color: C.gold2, padding: "0px 4px", borderRadius: 6 }}>← 차례</span>}
+                            </div>
+                            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                              베팅 <b style={{ color: C.gold2 }}>{(bets[i]||0).toLocaleString()}</b>
+                            </div>
+                            {stack !== null && (
+                              <div style={{ fontSize: 10, color: stack >= 0 ? C.muted : C.red }}>
+                                잔여 <b style={{ color: stack >= 0 ? C.gold2 : C.red }}>{stack.toLocaleString()}</b>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                          현재: <b style={{ color: C.gold2 }}>{(bets[i]||0).toLocaleString()}원</b>
-                          <span style={{ marginLeft: 8 }}>누적: <b style={{ color: C.text }}>{(totalBets[i]||0).toLocaleString()}원</b></span>
-                          {buyIn > 0 && (
-                            <span style={{ marginLeft: 8 }}>
-                              잔여: <b style={{ color: buyIn - (totalBets[i]||0) > 0 ? C.gold2 : C.red }}>
-                                {(buyIn - (totalBets[i]||0) + (totalAmounts[i]||0)).toLocaleString()}원
-                              </b>
-                            </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 오른쪽: 액션 패널 or 쇼다운 */}
+                <div>
+                  {!handOver && actionIdx >= 0 && (() => {
+                    const i        = actionIdx;
+                    const mb       = getMaxBet(bets);
+                    const callAmt  = mb - (bets[i]||0);
+                    const canCheck = callAmt === 0;
+                    return (
+                      <div>
+                        <div style={S.sectionLabel}>{players[i]}의 차례</div>
+                        <div style={{ ...S.card, padding: 10, border: `1px solid ${C.border2}` }}>
+                          {!canCheck && (
+                            <div style={{ fontSize: 11, color: C.blue, marginBottom: 8 }}>
+                              콜: <b>{callAmt.toLocaleString()}원</b>
+                            </div>
                           )}
+
+                          {/* 레이즈 금액 */}
+                          <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>레이즈 추가 금액</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 6 }}>
+                            {[100, 500, 1000, 5000].map(a => (
+                              <button key={a}
+                                onClick={() => setRaiseInput(String((parseInt(raiseInput)||0) + a))}
+                                style={{ ...S.miniBtn(false, "info"), padding: "6px 2px", fontSize: 11, textAlign: "center" }}>
+                                +{a.toLocaleString()}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                            <input type="number" value={raiseInput}
+                              onChange={e => setRaiseInput(e.target.value)}
+                              placeholder={`최소 ${blinds.big.toLocaleString()}`}
+                              style={{ flex: 1, padding: "6px 8px", background: C.bg3,
+                                border: `1px solid ${C.border2}`, borderRadius: 8,
+                                color: C.text, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                            <button onClick={() => setRaiseInput("")}
+                              style={{ ...S.miniBtn(false, "danger"), padding: "6px 8px", fontSize: 11 }}>✕</button>
+                          </div>
+
+                          {/* 액션 버튼 2×2 */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                            <button onClick={() => doAction("fold")}
+                              style={{ ...S.miniBtn(false,"danger"), padding:"11px 4px", fontSize:13, textAlign:"center" }}>
+                              다이
+                            </button>
+                            {canCheck ? (
+                              <button onClick={() => doAction("check")}
+                                style={{ ...S.miniBtn(false,null), padding:"11px 4px", fontSize:13, textAlign:"center" }}>
+                                체크
+                              </button>
+                            ) : (
+                              <button onClick={() => doAction("call")}
+                                style={{ ...S.miniBtn(false,"info"), padding:"11px 4px", fontSize:13, textAlign:"center" }}>
+                                콜
+                              </button>
+                            )}
+                            <button onClick={() => doAction("raise")}
+                              disabled={!raiseInput || parseInt(raiseInput) <= 0}
+                              style={{ ...S.miniBtn(false,"success"), padding:"11px 4px", fontSize:13, textAlign:"center",
+                                opacity: (!raiseInput || parseInt(raiseInput) <= 0) ? 0.35 : 1 }}>
+                              레이즈
+                            </button>
+                            <button onClick={() => doAction("allin")}
+                              style={{ ...S.miniBtn(false,"purple"), padding:"11px 4px", fontSize:13, textAlign:"center" }}>
+                              올인!
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      {isAct && !isDead && mb > (bets[i]||0) && (
-                        <div style={{ fontSize: 11, color: C.blue, textAlign: "right", flexShrink: 0 }}>
-                          콜: {(mb - (bets[i]||0)).toLocaleString()}
+                    );
+                  })()}
+
+                  {handOver && (
+                    <div>
+                      <div style={S.sectionLabel}>
+                        {autoWinner.length > 0 ? "자동 승리" : "쇼다운"}
+                      </div>
+                      <div style={{ ...S.card, padding: 10, border: `1px solid rgba(78,203,138,0.4)` }}>
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: C.green, marginBottom: 6 }}>
+                          {autoWinner.length > 0
+                            ? `🏆 ${autoWinner.map(w => players[w]).join(", ")} 승!`
+                            : "승자를 선택하세요"}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        <div style={{ fontSize: 12, color: C.gold2, marginBottom: 8 }}>팟: {pot.toLocaleString()}원</div>
 
-              {/* 액션 패널 */}
-              {!handOver && actionIdx >= 0 && (() => {
-                const i       = actionIdx;
-                const mb      = getMaxBet(bets);
-                const callAmt = mb - (bets[i]||0);
-                const canCheck = callAmt === 0;
-                return (
-                  <div style={{ ...S.card, border: `1px solid ${C.border2}`, marginBottom: 12 }}>
-                    <div style={{ fontSize: 14, fontWeight: "bold", color: C.gold2, marginBottom: 12 }}>
-                      {players[i]}의 차례
-                      {!canCheck && <span style={{ fontSize: 12, color: C.blue, marginLeft: 8 }}>
-                        (콜: {callAmt.toLocaleString()}원)
-                      </span>}
-                    </div>
+                        {autoWinner.length === 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            {players.map((p, i) => !folded[i] && (
+                              <button key={i} onClick={() => {
+                                if (showdownWinners.includes(i)) setShowdownWinners(showdownWinners.filter(w => w !== i));
+                                else setShowdownWinners([...showdownWinners, i]);
+                              }} style={{
+                                display: "flex", alignItems: "center", gap: 6, width: "100%",
+                                padding: "7px 8px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
+                                border: `1px solid ${showdownWinners.includes(i) ? "rgba(78,203,138,0.5)" : C.border}`,
+                                background: showdownWinners.includes(i) ? "rgba(78,203,138,0.1)" : C.bg3,
+                                color: C.text, fontFamily: "inherit", textAlign: "left",
+                              }}>
+                                <Avatar i={i} name={p} size={22} />
+                                <span style={{ flex: 1, fontSize: 12 }}>{p}</span>
+                                {allin[i] && <span style={{ fontSize: 9, color: C.purple }}>올인</span>}
+                                <span style={{ fontSize: 11, color: showdownWinners.includes(i) ? C.green : C.muted }}>
+                                  {showdownWinners.includes(i) ? "✓" : "○"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
-                    {/* 레이즈 금액 */}
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>레이즈 추가 금액</div>
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
-                        {[100, 500, 1000, 5000].map(a => (
-                          <button key={a}
-                            onClick={() => setRaiseInput(String((parseInt(raiseInput)||0) + a))}
-                            style={{ ...S.miniBtn(false, "info"), flex: 1, padding: "7px 4px" }}>
-                            +{a.toLocaleString()}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <input
-                          type="number"
-                          value={raiseInput}
-                          onChange={e => setRaiseInput(e.target.value)}
-                          placeholder={`최소 ${blinds.big.toLocaleString()}`}
-                          style={{
-                            flex: 1, padding: "8px 10px", background: C.bg3,
-                            border: `1px solid ${C.border2}`, borderRadius: 8,
-                            color: C.text, fontSize: 14, outline: "none", fontFamily: "inherit",
-                          }}
-                        />
-                        <button onClick={() => setRaiseInput("")}
-                          style={{ ...S.miniBtn(false, "danger"), padding: "8px 12px" }}>
-                          초기화
+                        <button onClick={settleHand}
+                          disabled={autoWinner.length === 0 && showdownWinners.length === 0}
+                          style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10,
+                            opacity: (autoWinner.length === 0 && showdownWinners.length === 0) ? 0.35 : 1 }}>
+                          정산 & 다음 핸드 →
                         </button>
                       </div>
-                    </div>
-
-                    {/* 액션 버튼 */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-                      <button onClick={() => doAction("fold")}
-                        style={{ ...S.miniBtn(false,"danger"), padding:"12px 4px", fontSize:13, textAlign:"center" }}>
-                        다이
-                      </button>
-                      {canCheck ? (
-                        <button onClick={() => doAction("check")}
-                          style={{ ...S.miniBtn(false,null), padding:"12px 4px", fontSize:13, textAlign:"center" }}>
-                          체크
-                        </button>
-                      ) : (
-                        <button onClick={() => doAction("call")}
-                          style={{ ...S.miniBtn(false,"info"), padding:"12px 4px", fontSize:13, textAlign:"center" }}>
-                          콜
-                        </button>
-                      )}
-                      <button onClick={() => doAction("raise")}
-                        disabled={!raiseInput || parseInt(raiseInput) <= 0}
-                        style={{
-                          ...S.miniBtn(false,"success"), padding:"12px 4px", fontSize:13, textAlign:"center",
-                          opacity: (!raiseInput || parseInt(raiseInput) <= 0) ? 0.35 : 1,
-                        }}>
-                        레이즈
-                      </button>
-                      <button onClick={() => doAction("allin")}
-                        style={{ ...S.miniBtn(false,"purple"), padding:"12px 4px", fontSize:13, textAlign:"center" }}>
-                        올인!
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* 쇼다운 / 핸드 종료 */}
-              {handOver && (
-                <div style={{ ...S.card, border: `1px solid rgba(78,203,138,0.4)`, marginBottom: 12 }}>
-                  <div style={{ fontSize: 14, fontWeight: "bold", color: C.green, marginBottom: 8 }}>
-                    {autoWinner.length > 0
-                      ? `🏆 ${autoWinner.map(w => players[w]).join(", ")} 자동 승리!`
-                      : "🃏 쇼다운 — 승자를 선택하세요 (복수 선택 가능)"}
-                  </div>
-                  <div style={{ fontSize: 13, color: C.gold2, marginBottom: 12 }}>
-                    팟: {pot.toLocaleString()}원
-                  </div>
-
-                  {autoWinner.length === 0 && (
-                    <div style={{ marginBottom: 12 }}>
-                      {players.map((p, i) => !folded[i] && (
-                        <button key={i} onClick={() => {
-                          if (showdownWinners.includes(i))
-                            setShowdownWinners(showdownWinners.filter(w => w !== i));
-                          else
-                            setShowdownWinners([...showdownWinners, i]);
-                        }} style={{
-                          display: "flex", alignItems: "center", gap: 8, width: "100%",
-                          padding: "10px", marginBottom: 6, borderRadius: 8, cursor: "pointer",
-                          border: `1px solid ${showdownWinners.includes(i) ? "rgba(78,203,138,0.5)" : C.border}`,
-                          background: showdownWinners.includes(i) ? "rgba(78,203,138,0.1)" : C.bg3,
-                          color: C.text, fontFamily: "inherit", textAlign: "left",
-                        }}>
-                          <Avatar i={i} name={p} size={28} />
-                          <span style={{ flex: 1, fontSize: 14 }}>{p}</span>
-                          {allin[i] && <span style={{ fontSize: 10, color: C.purple }}>올인</span>}
-                          {showdownWinners.includes(i)
-                            ? <span style={{ fontSize: 12, color: C.green }}>✓ 승자</span>
-                            : <span style={{ fontSize: 12, color: C.muted }}>선택</span>}
-                        </button>
-                      ))}
                     </div>
                   )}
 
-                  <button onClick={settleHand}
-                    disabled={autoWinner.length === 0 && showdownWinners.length === 0}
-                    style={{
-                      ...S.primaryBtn, marginTop: 0,
-                      opacity: (autoWinner.length === 0 && showdownWinners.length === 0) ? 0.35 : 1,
-                    }}>
-                    팟 정산 & 다음 핸드 준비 →
-                  </button>
+                  {!handOver && actionIdx < 0 && (
+                    <div style={{ ...S.card, padding: 10, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                      핸드 대기 중
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* 이번 핸드 기록 */}
+              {/* 이번 핸드 기록 (접힌 형태) */}
               {actionLog.length > 0 && (
                 <div>
                   <div style={S.sectionLabel}>이번 핸드 기록</div>
                   <div style={{ ...S.card, padding: 10 }}>
-                    <div style={{ maxHeight: 160, overflowY: "auto" }}>
+                    <div style={{ maxHeight: 120, overflowY: "auto" }}>
                       {[...actionLog].reverse().map((h, ri) => (
                         <div key={ri} style={{ fontSize: 11, padding: "3px 0", color: C.muted,
                           borderBottom: `1px solid ${C.border}` }}>
                           {h.player === -1
                             ? <span style={{ color: C.gold }}>앤티 {h.amount.toLocaleString()}원 팟 추가</span>
                             : <span>
-                                <span style={{ color: PLAYER_COLORS[h.player % 8].text }}>
-                                  {players[h.player]}
-                                </span>
+                                <span style={{ color: PLAYER_COLORS[h.player % 8].text }}>{players[h.player]}</span>
                                 {" — "}
                                 <span style={{
                                   color: h.action === "다이"         ? C.red    :
@@ -904,8 +914,7 @@ function GoStopApp() {
                                          h.action === "올인!"        ? C.purple :
                                          h.action === "콜"           ? C.blue   : C.text
                                 }}>{h.action}</span>
-                                {h.amount > 0 &&
-                                  <span style={{ color: C.gold2 }}> {h.amount.toLocaleString()}원</span>}
+                                {h.amount > 0 && <span style={{ color: C.gold2 }}> {h.amount.toLocaleString()}원</span>}
                               </span>
                           }
                         </div>
@@ -1029,7 +1038,7 @@ function GoStopApp() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
             {players.map((p, i) => {
               const amt = gameType === "holdem" ? (totalAmounts[i]||0) : gostopTotals[i];
-              const remaining = gameType === "holdem" && buyIn > 0 ? buyIn + amt : null;
+              const remaining = gameType === "holdem" && (buyIns[i]||0) > 0 ? (buyIns[i]||0) + amt : null;
               return (
                 <div key={i} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
                   <div style={{ fontSize: 11, color: C.muted }}>{p}</div>
