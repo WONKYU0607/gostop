@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.wonkyu.gostop",
+    "sha256_cert_fingerprints": ["34:17:81:26:D5:61:50:56:2C:D6:7A:5C:7F:64:F9:88:38:83:87:76:6F:AB:92:4F:D8:7C:A3:37:7A:FC:03:FB"]
+  }
+}]
