@@ -1,12 +1,3 @@
-// ── localStorage 자동저장 ────────────────────────────────
-const SAVE_KEY = "gostop_autosave_v1";
-function loadSave() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { return {}; }
-}
-function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch {}
-}
-
 const PLAYER_COLORS = [
   { bg: "rgba(232,93,74,0.2)",  text: "#E85D4A" },
   { bg: "rgba(74,144,232,0.2)", text: "#4A90E8" },
@@ -144,22 +135,20 @@ function streetLabel(s) {
 // 메인 앱
 // ──────────────────────────────────────────────────────────
 function GoStopApp() {
-  const _s = React.useMemo(() => loadSave(), []);
-
-  const [gameType, setGameType] = React.useState(_s.gameType || "gostop");
+  const [gameType, setGameType] = React.useState("gostop");
   const [screen,   setScreen]   = React.useState("setup");
-  const [players,  setPlayers]  = React.useState(_s.players || ["플레이어 1", "플레이어 2", "플레이어 3"]);
+  const [players,  setPlayers]  = React.useState(["플레이어 1", "플레이어 2", "플레이어 3"]);
 
   // ── 고스톱 state ────
-  const [rounds,       setRounds]       = React.useState(_s.rounds || []);
-  const [inputAmounts, setInputAmounts] = React.useState(Array((_s.players || ["","",""]).length).fill(0));
+  const [rounds,       setRounds]       = React.useState([]);
+  const [inputAmounts, setInputAmounts] = React.useState([0, 0, 0]);
   const [inputError,   setInputError]   = React.useState("");
 
   // ── 홀덤 설정 state ────
-  const [blinds,    setBlinds]    = React.useState(_s.blinds    || { small: 500, big: 1000 });
-  const [anteAmt,   setAnteAmt]   = React.useState(_s.anteAmt   ?? 0);
-  const [dealerIdx, setDealerIdx] = React.useState(_s.dealerIdx || 0);
-  const [buyIns,    setBuyIns]    = React.useState(_s.buyIns    || Array((_s.players || ["","",""]).length).fill(0)); // 플레이어별 바이인
+  const [blinds,    setBlinds]    = React.useState({ small: 500, big: 1000 });
+  const [anteAmt,   setAnteAmt]   = React.useState(0);
+  const [dealerIdx, setDealerIdx] = React.useState(0);
+  const [buyIns,    setBuyIns]    = React.useState([0, 0, 0]); // 플레이어별 바이인
 
   // ── 홀덤 게임 state ────
   // street: preflop|flop|turn|river|showdown
@@ -177,17 +166,12 @@ function GoStopApp() {
   const [handOver,    setHandOver]    = React.useState(false);
   const [autoWinner,  setAutoWinner]  = React.useState([]);
   const [showdownWinners, setShowdownWinners] = React.useState([]);
-  const [handHistory, setHandHistory] = React.useState(_s.handHistory || []);
+  const [handHistory, setHandHistory] = React.useState([]);
   const [actionLog,   setActionLog]   = React.useState([]);
   const [raiseInput,  setRaiseInput]  = React.useState("");
   const [boardStage,  setBoardStage]  = React.useState(0); // 0,3,4,5
 
   const n = players.length;
-
-  // ── 자동저장 ────────────────────────────────────────────
-  React.useEffect(() => {
-    writeSave({ gameType, players, rounds, handHistory, buyIns, blinds, anteAmt, dealerIdx });
-  }, [gameType, players, rounds, handHistory, buyIns, blinds, anteAmt, dealerIdx]);
 
   // ── 정산 합계 ────
   const totalAmounts = React.useMemo(() => {
@@ -463,6 +447,32 @@ function GoStopApp() {
   }
 
   // ── 정산 계산 ───────────────────────────────────────────
+  const [copyDone, setCopyDone] = React.useState(false);
+
+  function copyResult() {
+    const amounts = gameType === "holdem" ? totalAmounts : gostopTotals;
+    const tx = calcSettlement(amounts);
+    const gameLabel = gameType === "holdem" ? "홀덤" : "고스톱";
+    const line = "──────────────────";
+    let text = "🎴 " + gameLabel + " 정산 결과\n" + line + "\n";
+    players.forEach((p, i) => {
+      const amt = amounts[i];
+      const sign = amt > 0 ? "+" : "";
+      text += p + ": " + sign + amt.toLocaleString() + "원\n";
+    });
+    const txList = tx;
+    if (txList.length > 0) {
+      text += line + "\n💸 이체 내역\n";
+      txList.forEach(t => {
+        text += players[t.from] + " → " + players[t.to] + ": " + t.amount.toLocaleString() + "원\n";
+      });
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyDone(true);
+      setTimeout(() => setCopyDone(false), 2000);
+    }).catch(() => {});
+  }
+
   function calcSettlement(amounts) {
     const balances = amounts.map((a, i) => ({ idx: i, amount: a }));
     const d = balances.filter(b => b.amount < 0).sort((a, b) => a.amount - b.amount);
@@ -488,7 +498,7 @@ function GoStopApp() {
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
         <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴🃏 정산기</div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게 <span style={{ fontSize: 10, color: C.border2 }}>v1.1.0</span></div>
       </div>
 
       {/* 게임 탭 */}
@@ -1106,8 +1116,15 @@ function GoStopApp() {
             })()}
           </div>
 
+          <button onClick={copyResult} style={{ ...S.primaryBtn, marginBottom: 8,
+            background: copyDone ? "rgba(78,203,138,0.15)" : C.bg3,
+            border: `1px solid ${copyDone ? "rgba(78,203,138,0.5)" : C.border2}`,
+            color: copyDone ? C.green : C.gold2 }}>
+            {copyDone ? "✓ 복사됨!" : "📋 결과 복사"}
+          </button>
+
           <button onClick={() => {
-            setRounds([]); setHandHistory([]); resetHand(); setScreen("setup"); writeSave({});
+            setRounds([]); setHandHistory([]); resetHand(); setScreen("setup");
           }} style={{ ...S.primaryBtn, background: "transparent", border: `1px solid rgba(224,90,90,0.4)`, color: C.red }}>
             새 게임 시작
           </button>
