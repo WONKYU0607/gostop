@@ -472,19 +472,19 @@ function GoStopApp() {
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
         <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2, display: "flex", alignItems: "center", gap: 6 }}>
-          {/* 화투패 SVG */}
-          <svg width="24" height="28" viewBox="0 0 24 28" style={{ borderRadius: 3 }}>
-            <rect width="24" height="28" rx="3" fill="#1a0a00" stroke="#8B4513" strokeWidth="1.5"/>
-            <circle cx="12" cy="14" r="7" fill="#cc2200"/>
-            <circle cx="12" cy="14" r="4" fill="#ff4422"/>
-            <circle cx="12" cy="14" r="1.5" fill="#ffccaa"/>
+          <svg width="26" height="30" viewBox="0 0 26 30" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
+            <rect width="26" height="30" rx="4" fill="#2a0a00" stroke="#7a3a10" strokeWidth="1.2"/>
+            <rect x="2" y="2" width="22" height="26" rx="3" fill="#1a0500"/>
+            <circle cx="13" cy="15" r="8" fill="#c41a00" stroke="#ff2200" strokeWidth="0.5"/>
+            <circle cx="13" cy="15" r="5" fill="#e82200"/>
+            <circle cx="13" cy="15" r="2.5" fill="#ff6644"/>
+            <circle cx="13" cy="15" r="1" fill="#ffaa88"/>
           </svg>
-          {/* 에이스 카드 SVG */}
-          <svg width="24" height="28" viewBox="0 0 24 28" style={{ borderRadius: 3 }}>
-            <rect width="24" height="28" rx="3" fill="white" stroke="#ccc" strokeWidth="1"/>
-            <text x="3" y="10" fontSize="8" fill="#1a1a2e" fontWeight="bold">A</text>
-            <text x="12" y="17" fontSize="12" fill="#1a1a2e" textAnchor="middle">♠</text>
-            <text x="21" y="26" fontSize="8" fill="#1a1a2e" fontWeight="bold" transform="rotate(180,21,26)">A</text>
+          <svg width="26" height="30" viewBox="0 0 26 30" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
+            <rect width="26" height="30" rx="4" fill="white" stroke="#ddd" strokeWidth="1"/>
+            <text x="4" y="9" fontSize="7" fill="#111" fontWeight="900" fontFamily="serif">A</text>
+            <text x="13" y="20" fontSize="14" fill="#111" textAnchor="middle" fontFamily="serif">♠</text>
+            <text x="22" y="28" fontSize="7" fill="#111" fontWeight="900" fontFamily="serif" textAnchor="middle" transform="rotate(180,22,25)">A</text>
           </svg>
           정산기
         </div>
