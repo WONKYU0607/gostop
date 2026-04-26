@@ -472,19 +472,19 @@ function GoStopApp() {
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
         <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2, display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="26" height="30" viewBox="0 0 26 30" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
-            <rect width="26" height="30" rx="4" fill="#2a0a00" stroke="#7a3a10" strokeWidth="1.2"/>
-            <rect x="2" y="2" width="22" height="26" rx="3" fill="#1a0500"/>
-            <circle cx="13" cy="15" r="8" fill="#c41a00" stroke="#ff2200" strokeWidth="0.5"/>
-            <circle cx="13" cy="15" r="5" fill="#e82200"/>
-            <circle cx="13" cy="15" r="2.5" fill="#ff6644"/>
-            <circle cx="13" cy="15" r="1" fill="#ffaa88"/>
+          <svg width="28" height="34" viewBox="0 0 52 70">
+            <rect width="52" height="70" rx="5" fill="#cc1100" stroke="#991100" strokeWidth="1.5"/>
+            <circle cx="26" cy="22" r="13" fill="white"/>
+            <path d="M0 70 L0 44 Q26 30 52 44 L52 70 Z" fill="#111"/>
+            <rect x="0" y="62" width="52" height="8" rx="5" fill="#111"/>
+            <circle cx="20" cy="57" r="8" fill="#cc1100"/>
+            <text x="20" y="61" textAnchor="middle" fontSize="10" fill="white" fontWeight="700" fontFamily="serif">光</text>
           </svg>
-          <svg width="26" height="30" viewBox="0 0 26 30" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
-            <rect width="26" height="30" rx="4" fill="white" stroke="#ddd" strokeWidth="1"/>
-            <text x="4" y="9" fontSize="7" fill="#111" fontWeight="900" fontFamily="serif">A</text>
-            <text x="13" y="20" fontSize="14" fill="#111" textAnchor="middle" fontFamily="serif">♠</text>
-            <text x="22" y="28" fontSize="7" fill="#111" fontWeight="900" fontFamily="serif" textAnchor="middle" transform="rotate(180,22,25)">A</text>
+          <svg width="28" height="34" viewBox="0 0 52 70">
+            <rect width="52" height="70" rx="5" fill="white" stroke="#ccc" strokeWidth="1"/>
+            <text x="5" y="15" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif">A</text>
+            <text x="26" y="46" fontSize="28" fill="#111" textAnchor="middle" fontFamily="serif">♠</text>
+            <text x="47" y="67" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif" textAnchor="middle" transform="rotate(180,47,63)">A</text>
           </svg>
           정산기
         </div>
