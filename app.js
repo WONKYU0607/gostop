@@ -104,7 +104,6 @@ function Avatar({ i, name, size = 28 }) {
 // ──────────────────────────────────────────────────────────
 // 홀덤 헬퍼
 // ──────────────────────────────────────────────────────────
-// 사이드팟 계산
 function calcSidePots(totalBets, folded, n) {
   const levels = [...new Set(
     Array.from({length: n}, (_, i) => i)
@@ -112,8 +111,7 @@ function calcSidePots(totalBets, folded, n) {
       .map(i => totalBets[i])
   )].sort((a, b) => a - b);
   if (levels.length === 0) return [];
-  const pots = [];
-  let prev = 0;
+  const pots = []; let prev = 0;
   for (const level of levels) {
     let amt = 0;
     for (let i = 0; i < n; i++) amt += Math.max(0, Math.min(totalBets[i], level) - prev);
@@ -191,8 +189,9 @@ function GoStopApp() {
   const [prevSnapshot, setPrevSnapshot] = React.useState(null);
   const [nextFirstPlayer, setNextFirstPlayer] = React.useState(-1);
   const [selectingNextStarter, setSelectingNextStarter] = React.useState(false);
-  const [potWinners, setPotWinners] = React.useState([]); // 사이드팟 승자
+  const [potWinners, setPotWinners] = React.useState([]);
   const [settlingPotIdx, setSettlingPotIdx] = React.useState(0);
+  const [hasActedThisRound, setHasActedThisRound] = React.useState(new Set());
   const [raiseInput,  setRaiseInput]  = React.useState("");
   const [boardStage,  setBoardStage]  = React.useState(0); // 0,3,4,5
 
@@ -301,10 +300,7 @@ function GoStopApp() {
       lastRaiserInit = bb;
     }
 
-    if (nextFirstPlayer >= 0) {
-      firstAction = nextFirstPlayer;
-      lastRaiserInit = nextFirstPlayer;
-    }
+    if (nextFirstPlayer >= 0) { firstAction = nextFirstPlayer; lastRaiserInit = nextFirstPlayer; }
 
     setSbIdx(blinds.small === 0 ? -1 : sb);
     setBbIdx(blinds.small === 0 ? -1 : bb);
@@ -316,6 +312,7 @@ function GoStopApp() {
     setAutoWinner([]); setShowdownWinners([]);
     setBoardStage(0); setRaiseInput(""); setNextFirstPlayer(-1);
     setPotWinners([]); setSettlingPotIdx(0);
+    setHasActedThisRound(new Set());
     setScreen("game");
   }
 
@@ -359,6 +356,7 @@ function GoStopApp() {
     while ((newFolded[startIdx] || newAllin[startIdx]) && t2 < nn) {
       startIdx = (startIdx + 1) % nn; t2++;
     }
+    setHasActedThisRound(new Set());
     const nonAllin = activeNonAllin(newFolded, newAllin, nn);
     if (nonAllin.length <= 1) {
       // 모두 올인 → 쇼다운
@@ -408,7 +406,7 @@ function GoStopApp() {
       nb[i]  += actualCall;
       ntb[i] += actualCall;
       np     += actualCall;
-      if (actualCall < callAmt) { na[i] = true; }
+      if (_myBuyIn > 0 && _stackLeft <= callAmt) { na[i] = true; }
       log.push({ player: i, action: "콜", amount: actualCall });
 
     } else if (action === "raise") {
@@ -419,7 +417,7 @@ function GoStopApp() {
       np     += total;
       setLastRaiser(i);
       newLastRaiser = i;
-      if (total >= _stackLeft && _myBuyIn > 0) { na[i] = true; }
+      if (_myBuyIn > 0 && _stackLeft <= callAmt + raiseBy) { na[i] = true; }
       log.push({ player: i, action: `레이즈 +${raiseBy.toLocaleString()}`, amount: total });
 
     } else if (action === "allin") {
@@ -430,6 +428,10 @@ function GoStopApp() {
       na[i]   = true;
       log.push({ player: i, action: "올인!", amount: nb[i] });
     }
+
+    // 이번 라운드에 액션한 플레이어 추적
+    const newHasActed = new Set([...hasActedThisRound, i]);
+    setHasActedThisRound(newHasActed);
 
     // 다음 플레이어
     const nextIdx = nextActive(nf, na, i, nn);
@@ -444,10 +446,11 @@ function GoStopApp() {
       return;
     }
 
-    // 베팅 종료 조건: 모든 active non-allin이 같은 금액 && 다음 차례가 라스트레이저이거나 없음
+    // 베팅 종료: 모든 non-allin이 같은 금액 && 이번 라운드에 모두 액션함
     const roundDone = isBettingDone(nb, nf, na, nn) &&
-      (nextIdx === lastRaiser || nextIdx === -1 ||
-       activeNonAllin(nf, na, nn).length <= 1);
+      (nextIdx === -1 ||
+       activeNonAllin(nf, na, nn).length <= 1 ||
+       activeNonAllin(nf, na, nn).every(p => newHasActed.has(p)));
 
     if (roundDone) {
       advanceStreetState(nb, ntb, nf, na, np, log, newLastRaiser);
@@ -465,7 +468,7 @@ function GoStopApp() {
     setBets(s.bets); setTotalBets(s.totalBets); setFolded(s.folded);
     setAllin(s.allin); setPot(s.pot); setActionIdx(s.actionIdx);
     setLastRaiser(s.lastRaiser); setActionLog(s.actionLog);
-    setPrevSnapshot(null);
+    setHasActedThisRound(new Set()); setPrevSnapshot(null);
   }
 
   // ── 홀덤: 사이드팟 승자 확정 ────────────────────────────
@@ -473,14 +476,11 @@ function GoStopApp() {
     const nn = players.length;
     const pots = calcSidePots(totalBets, folded, nn);
     const newPotWinners = [...potWinners, winners];
-
     if (settlingPotIdx < pots.length - 1) {
-      // 다음 팟으로
       setPotWinners(newPotWinners);
       setSettlingPotIdx(settlingPotIdx + 1);
       setShowdownWinners([]);
     } else {
-      // 모든 팟 확정 → 정산
       settleMultiPot(newPotWinners, pots);
     }
   }
@@ -488,65 +488,49 @@ function GoStopApp() {
   function settleMultiPot(potWinnersList, pots) {
     const nn = players.length;
     const settlement = Array(nn).fill(0);
-
-    pots.forEach((pot, idx) => {
+    pots.forEach((p, idx) => {
       const ws = potWinnersList[idx] || [];
       if (ws.length === 0) return;
-      const perW = Math.floor(pot.amount / ws.length);
+      const perW = Math.floor(p.amount / ws.length);
       ws.forEach(w => { settlement[w] += perW; });
-      const rem = pot.amount - perW * ws.length;
+      const rem = p.amount - perW * ws.length;
       if (rem > 0) settlement[ws[0]] += rem;
     });
     for (let i = 0; i < nn; i++) settlement[i] -= totalBets[i];
-
     const allWinners = [...new Set(potWinnersList.flat())];
     setHandHistory([...handHistory, {
       pot, winners: allWinners,
       winnerNames: allWinners.map(w => players[w]),
-      totalBets: [...totalBets],
-      settlement,
+      totalBets: [...totalBets], settlement,
     }]);
-
-    if (allWinners.length > 1) {
-      setSelectingNextStarter(true);
-      return;
-    }
+    if (allWinners.length > 1) { setSelectingNextStarter(true); return; }
     setNextFirstPlayer(allWinners[0]);
     resetHand(); setPotWinners([]); setSettlingPotIdx(0);
+    setHasActedThisRound(new Set());
     setScreen("setup");
   }
 
-  // ── 홀덤: 자동 승리 정산 ────────────────────────────────
+  // ── 홀덤: 팟 정산 ──────────────────────────────────────
   function settleHand(nextStarterIdx) {
     const nn = players.length;
     const ws = autoWinner.length > 0 ? autoWinner : showdownWinners;
     if (ws.length === 0) return;
-
-    // 무승부 선 선택
-    if (ws.length > 1 && nextStarterIdx === undefined) {
-      setSelectingNextStarter(true);
-      return;
-    }
-
+    if (ws.length > 1 && nextStarterIdx === undefined) { setSelectingNextStarter(true); return; }
     const settlement = Array(nn).fill(0);
     const perWinner  = Math.floor(pot / ws.length);
     ws.forEach(w => { settlement[w] += perWinner; });
     for (let i = 0; i < nn; i++) settlement[i] -= totalBets[i];
     const rem = pot - perWinner * ws.length;
     if (rem > 0) settlement[ws[0]] += rem;
-
     setHandHistory([...handHistory, {
-      pot, winners: ws,
-      winnerNames: ws.map(w => players[w]),
-      totalBets: [...totalBets],
-      settlement,
+      pot, winners: ws, winnerNames: ws.map(w => players[w]),
+      totalBets: [...totalBets], settlement,
     }]);
-
     const winner = nextStarterIdx !== undefined ? nextStarterIdx : ws[0];
     setNextFirstPlayer(winner);
     setSelectingNextStarter(false);
-    resetHand();
-    setScreen("setup");
+    setHasActedThisRound(new Set());
+    resetHand(); setScreen("setup");
   }
 
   // ── 정산 계산 ───────────────────────────────────────────
@@ -1006,14 +990,12 @@ function GoStopApp() {
                     const isMultiPot = sidePots.length > 1;
                     const curPot = isMultiPot ? sidePots[settlingPotIdx] : null;
                     const curEligible = curPot ? curPot.eligible : [];
-
                     return (
                     <div>
                       <div style={S.sectionLabel}>
-                        {autoWinner.length > 0 ? "자동 승리" : isMultiPot ? `쇼다운 (팟 ${settlingPotIdx + 1}/${sidePots.length})` : "쇼다운"}
+                        {autoWinner.length > 0 ? "자동 승리" : isMultiPot ? `쇼다운 (팟 ${settlingPotIdx+1}/${sidePots.length})` : "쇼다운"}
                       </div>
                       <div style={{ ...S.card, padding: 10, border: `1px solid rgba(78,203,138,0.4)` }}>
-
                         {autoWinner.length > 0 ? (
                           <>
                             <div style={{ fontSize: 12, fontWeight: "bold", color: C.green, marginBottom: 6 }}>
@@ -1024,14 +1006,13 @@ function GoStopApp() {
                               <div>
                                 <div style={{ fontSize: 12, color: C.gold2, marginBottom: 6, fontWeight: "bold" }}>다음 핸드 첫 베팅 선 선택</div>
                                 {players.map((p, i) => (
-                                  <button key={i} onClick={() => { setNextFirstPlayer(i); setSelectingNextStarter(false); resetHand(); setScreen("setup"); }} style={{
+                                  <button key={i} onClick={() => { setNextFirstPlayer(i); setSelectingNextStarter(false); setHasActedThisRound(new Set()); resetHand(); setScreen("setup"); }} style={{
                                     display: "flex", alignItems: "center", gap: 6, width: "100%",
                                     padding: "7px 8px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
                                     border: `1px solid ${C.border2}`, background: C.bg3,
                                     color: C.text, fontFamily: "inherit", textAlign: "left",
                                   }}>
-                                    <Avatar i={i} name={p} size={22} />
-                                    <span style={{ fontSize: 12 }}>{p}</span>
+                                    <Avatar i={i} name={p} size={22} /><span style={{ fontSize: 12 }}>{p}</span>
                                   </button>
                                 ))}
                               </div>
@@ -1044,11 +1025,9 @@ function GoStopApp() {
                         ) : isMultiPot ? (
                           <>
                             <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
-                              {settlingPotIdx === 0 ? "메인 팟" : `사이드 팟 ${settlingPotIdx}`} — 참여: {curEligible.map(i => players[i]).join(", ")}
+                              {settlingPotIdx === 0 ? "메인 팟" : `사이드 팟 ${settlingPotIdx}`} — {curEligible.map(i => players[i]).join(", ")}
                             </div>
-                            <div style={{ fontSize: 12, color: C.gold2, marginBottom: 8 }}>
-                              {curPot.amount.toLocaleString()}원
-                            </div>
+                            <div style={{ fontSize: 12, color: C.gold2, marginBottom: 8 }}>{curPot.amount.toLocaleString()}원</div>
                             <div style={{ marginBottom: 8 }}>
                               {curEligible.map(i => (
                                 <button key={i} onClick={() => {
@@ -1074,23 +1053,21 @@ function GoStopApp() {
                               <div>
                                 <div style={{ fontSize: 12, color: C.gold2, marginBottom: 6, fontWeight: "bold" }}>다음 핸드 첫 베팅 선 선택</div>
                                 {players.map((p, i) => (
-                                  <button key={i} onClick={() => { setNextFirstPlayer(i); setSelectingNextStarter(false); resetHand(); setPotWinners([]); setSettlingPotIdx(0); setScreen("setup"); }} style={{
+                                  <button key={i} onClick={() => { setNextFirstPlayer(i); setSelectingNextStarter(false); setHasActedThisRound(new Set()); resetHand(); setPotWinners([]); setSettlingPotIdx(0); setScreen("setup"); }} style={{
                                     display: "flex", alignItems: "center", gap: 6, width: "100%",
                                     padding: "7px 8px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
                                     border: `1px solid ${C.border2}`, background: C.bg3,
                                     color: C.text, fontFamily: "inherit", textAlign: "left",
                                   }}>
-                                    <Avatar i={i} name={p} size={22} />
-                                    <span style={{ fontSize: 12 }}>{p}</span>
+                                    <Avatar i={i} name={p} size={22} /><span style={{ fontSize: 12 }}>{p}</span>
                                   </button>
                                 ))}
                               </div>
                             ) : (
                               <button onClick={() => confirmPotWinners(showdownWinners)}
                                 disabled={showdownWinners.length === 0}
-                                style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10,
-                                  opacity: showdownWinners.length === 0 ? 0.35 : 1 }}>
-                                {settlingPotIdx < sidePots.length - 1 ? `다음 팟 →` : "정산 & 다음 핸드 →"}
+                                style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10, opacity: showdownWinners.length === 0 ? 0.35 : 1 }}>
+                                {settlingPotIdx < sidePots.length - 1 ? "다음 팟 →" : "정산 & 다음 핸드 →"}
                               </button>
                             )}
                           </>
@@ -1121,7 +1098,7 @@ function GoStopApp() {
                             </div>
                             {selectingNextStarter ? (
                               <div>
-                                <div style={{ fontSize: 12, color: C.gold2, marginBottom: 6, fontWeight: "bold" }}>무승부 — 다음 핸드 첫 베팅 선을 선택하세요</div>
+                                <div style={{ fontSize: 12, color: C.gold2, marginBottom: 6, fontWeight: "bold" }}>무승부 — 다음 핸드 첫 베팅 선 선택</div>
                                 {players.map((p, i) => (
                                   <button key={i} onClick={() => settleHand(i)} style={{
                                     display: "flex", alignItems: "center", gap: 6, width: "100%",
@@ -1129,16 +1106,14 @@ function GoStopApp() {
                                     border: `1px solid ${C.border2}`, background: C.bg3,
                                     color: C.text, fontFamily: "inherit", textAlign: "left",
                                   }}>
-                                    <Avatar i={i} name={p} size={22} />
-                                    <span style={{ fontSize: 12 }}>{p}</span>
+                                    <Avatar i={i} name={p} size={22} /><span style={{ fontSize: 12 }}>{p}</span>
                                   </button>
                                 ))}
                               </div>
                             ) : (
                               <button onClick={() => settleHand()}
                                 disabled={showdownWinners.length === 0}
-                                style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10,
-                                  opacity: showdownWinners.length === 0 ? 0.35 : 1 }}>
+                                style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10, opacity: showdownWinners.length === 0 ? 0.35 : 1 }}>
                                 정산 & 다음 핸드 →
                               </button>
                             )}
