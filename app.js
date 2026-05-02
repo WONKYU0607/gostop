@@ -166,10 +166,11 @@ function GoStopApp() {
   const [handOver,    setHandOver]    = React.useState(false);
   const [autoWinner,  setAutoWinner]  = React.useState([]);
   const [showdownWinners, setShowdownWinners] = React.useState([]);
-  const [selectingNextStarter, setSelectingNextStarter] = React.useState(false);
   const [handHistory, setHandHistory] = React.useState([]);
   const [actionLog,   setActionLog]   = React.useState([]);
   const [prevSnapshot, setPrevSnapshot] = React.useState(null);
+  const [nextFirstPlayer, setNextFirstPlayer] = React.useState(-1);
+  const [selectingNextStarter, setSelectingNextStarter] = React.useState(false);
   const [raiseInput,  setRaiseInput]  = React.useState("");
   const [boardStage,  setBoardStage]  = React.useState(0); // 0,3,4,5
 
@@ -278,6 +279,12 @@ function GoStopApp() {
       lastRaiserInit = bb;
     }
 
+    // 전판 이긴 사람이 있으면 그 사람이 첫 베팅
+    if (nextFirstPlayer >= 0) {
+      firstAction = nextFirstPlayer;
+      lastRaiserInit = nextFirstPlayer;
+    }
+
     setSbIdx(blinds.small === 0 ? -1 : sb);
     setBbIdx(blinds.small === 0 ? -1 : bb);
     setBets(initBets); setTotalBets(initTotalBets);
@@ -286,7 +293,7 @@ function GoStopApp() {
     setActionIdx(firstAction); setLastRaiser(lastRaiserInit);
     setActionLog(log); setHandActive(true); setHandOver(false);
     setAutoWinner([]); setShowdownWinners([]);
-    setBoardStage(0); setRaiseInput("");
+    setBoardStage(0); setRaiseInput(""); setNextFirstPlayer(-1);
     setScreen("game");
   }
 
@@ -456,14 +463,15 @@ function GoStopApp() {
       settlement,
     }]);
 
+    // 무승부: 선 수동 선택
     if (ws.length > 1 && nextStarterIdx === undefined) {
       setSelectingNextStarter(true);
       return;
     }
 
+    // 딜러 고정, 이긴 사람이 다음 핸드 첫 베팅
     const winner = nextStarterIdx !== undefined ? nextStarterIdx : ws[0];
-    const newDealer = ((winner - 3) % nn + nn) % nn;
-    setDealerIdx(newDealer);
+    setNextFirstPlayer(winner);
     setSelectingNextStarter(false);
     resetHand();
     setScreen("setup");
@@ -805,7 +813,7 @@ function GoStopApp() {
                       const isAI   = allin[i];
                       const myBuyIn = buyIns[i] || 0;
                       const prevPnl = totalAmounts[i] || 0;
-                      const stack   = myBuyIn > 0 ? myBuyIn + prevPnl - (totalBets[i]||0) : null;
+                      const stack   = myBuyIn > 0 ? Math.max(0, myBuyIn + prevPnl - (totalBets[i]||0)) : null;
                       return (
                         <div key={i} style={{
                           display: "flex", alignItems: "flex-start", gap: 6,
