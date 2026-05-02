@@ -168,6 +168,7 @@ function GoStopApp() {
   const [showdownWinners, setShowdownWinners] = React.useState([]);
   const [handHistory, setHandHistory] = React.useState([]);
   const [actionLog,   setActionLog]   = React.useState([]);
+  const [prevSnapshot, setPrevSnapshot] = React.useState(null); // 직전 액션 스냅샷
   const [raiseInput,  setRaiseInput]  = React.useState("");
   const [boardStage,  setBoardStage]  = React.useState(0); // 0,3,4,5
 
@@ -351,6 +352,10 @@ function GoStopApp() {
     const mb     = getMaxBet(bets);
     const callAmt = mb - bets[i];
 
+    // 액션 전 스냅샷 저장
+    setPrevSnapshot({ bets:[...bets], totalBets:[...totalBets], folded:[...folded],
+      allin:[...allin], pot, actionIdx, lastRaiser, actionLog:[...actionLog] });
+
     const nb  = [...bets];
     const ntb = [...totalBets];
     const nf  = [...folded];
@@ -420,6 +425,16 @@ function GoStopApp() {
     }
   }
 
+  // ── 홀덤: 베팅 취소 ────────────────────────────────────
+  function undoAction() {
+    if (!prevSnapshot) return;
+    const s = prevSnapshot;
+    setBets(s.bets); setTotalBets(s.totalBets); setFolded(s.folded);
+    setAllin(s.allin); setPot(s.pot); setActionIdx(s.actionIdx);
+    setLastRaiser(s.lastRaiser); setActionLog(s.actionLog);
+    setPrevSnapshot(null);
+  }
+
   // ── 홀덤: 팟 정산 ──────────────────────────────────────
   function settleHand() {
     const nn = players.length;
@@ -471,23 +486,7 @@ function GoStopApp() {
 
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
-        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2, display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="28" height="34" viewBox="0 0 52 70">
-            <rect width="52" height="70" rx="5" fill="#cc1100" stroke="#991100" strokeWidth="1.5"/>
-            <circle cx="26" cy="22" r="13" fill="white"/>
-            <path d="M0 70 L0 44 Q26 30 52 44 L52 70 Z" fill="#111"/>
-            <rect x="0" y="62" width="52" height="8" rx="5" fill="#111"/>
-            <circle cx="20" cy="57" r="8" fill="#cc1100"/>
-            <text x="20" y="61" textAnchor="middle" fontSize="10" fill="white" fontWeight="700" fontFamily="serif">光</text>
-          </svg>
-          <svg width="28" height="34" viewBox="0 0 52 70">
-            <rect width="52" height="70" rx="5" fill="white" stroke="#ccc" strokeWidth="1"/>
-            <text x="5" y="15" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif">A</text>
-            <text x="26" y="46" fontSize="28" fill="#111" textAnchor="middle" fontFamily="serif">♠</text>
-            <text x="47" y="67" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif" textAnchor="middle" transform="rotate(180,47,63)">A</text>
-          </svg>
-          정산기
-        </div>
+        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴🃏 정산기</div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게</div>
       </div>
 
@@ -859,6 +858,15 @@ function GoStopApp() {
                               올인!
                             </button>
                           </div>
+                          {prevSnapshot && (
+                            <button onClick={undoAction} style={{
+                              width: "100%", marginTop: 8, padding: "8px", borderRadius: 8,
+                              background: "rgba(224,90,90,0.1)", border: "1px solid rgba(224,90,90,0.4)",
+                              color: C.red, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                            }}>
+                              ↩ 직전 베팅 취소
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -958,10 +966,7 @@ function GoStopApp() {
       ══════════════════════════════════════ */}
       {screen === "game" && gameType === "gostop" && (
         <div>
-          <div style={{ ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>판 입력</span>
-            <span style={{ fontSize: 12, color: C.gold2, fontWeight: "normal" }}>{rounds.length + 1}판째</span>
-          </div>
+          <div style={S.sectionLabel}>판 입력</div>
           <div style={S.card}>
             {players.map((name, i) => (
               <div key={i} style={{ ...S.playerRow, flexDirection: "column", alignItems: "stretch",
