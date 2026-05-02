@@ -470,6 +470,31 @@ function GoStopApp() {
   }
 
   // ── 정산 계산 ───────────────────────────────────────────
+  const [copyDone, setCopyDone] = React.useState(false);
+
+  function copyResult() {
+    const amounts = gameType === "holdem" ? totalAmounts : gostopTotals;
+    const tx = calcSettlement(amounts);
+    const gameLabel = gameType === "holdem" ? "홀덤" : "고스톱";
+    const line = "──────────────────";
+    let text = "🎴 " + gameLabel + " 정산 결과\n" + line + "\n";
+    players.forEach((p, i) => {
+      const amt = amounts[i];
+      const sign = amt > 0 ? "+" : "";
+      text += p + ": " + sign + amt.toLocaleString() + "원\n";
+    });
+    if (tx.length > 0) {
+      text += line + "\n💸 이체 내역\n";
+      tx.forEach(t => {
+        text += players[t.from] + " → " + players[t.to] + ": " + t.amount.toLocaleString() + "원\n";
+      });
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyDone(true);
+      setTimeout(() => setCopyDone(false), 2000);
+    }).catch(() => {});
+  }
+
   function calcSettlement(amounts) {
     const balances = amounts.map((a, i) => ({ idx: i, amount: a }));
     const d = balances.filter(b => b.amount < 0).sort((a, b) => a.amount - b.amount);
@@ -494,7 +519,23 @@ function GoStopApp() {
 
       {/* 헤더 */}
       <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
-        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2 }}>🎴🃏 정산기</div>
+        <div style={{ fontSize: 22, fontWeight: "bold", color: C.gold2, display: "flex", alignItems: "center", gap: 6 }}>
+          <svg width="28" height="34" viewBox="0 0 52 70">
+            <rect width="52" height="70" rx="5" fill="#cc1100" stroke="#991100" strokeWidth="1.5"/>
+            <circle cx="26" cy="22" r="13" fill="white"/>
+            <path d="M0 70 L0 44 Q26 30 52 44 L52 70 Z" fill="#111"/>
+            <rect x="0" y="62" width="52" height="8" rx="5" fill="#111"/>
+            <circle cx="20" cy="57" r="8" fill="#cc1100"/>
+            <text x="20" y="61" textAnchor="middle" fontSize="10" fill="white" fontWeight="700" fontFamily="serif">光</text>
+          </svg>
+          <svg width="28" height="34" viewBox="0 0 52 70">
+            <rect width="52" height="70" rx="5" fill="white" stroke="#ccc" strokeWidth="1"/>
+            <text x="5" y="15" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif">A</text>
+            <text x="26" y="46" fontSize="28" fill="#111" textAnchor="middle" fontFamily="serif">♠</text>
+            <text x="47" y="67" fontSize="11" fill="#111" fontWeight="700" fontFamily="serif" textAnchor="middle" transform="rotate(180,47,63)">A</text>
+          </svg>
+          정산기
+        </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>현금 없이 간편하게</div>
       </div>
 
@@ -993,7 +1034,10 @@ function GoStopApp() {
       ══════════════════════════════════════ */}
       {screen === "game" && gameType === "gostop" && (
         <div>
-          <div style={S.sectionLabel}>판 입력</div>
+          <div style={{ ...S.sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>판 입력</span>
+            <span style={{ fontSize: 12, color: C.gold2, fontWeight: "normal" }}>{rounds.length + 1}판째</span>
+          </div>
           <div style={S.card}>
             {players.map((name, i) => (
               <div key={i} style={{ ...S.playerRow, flexDirection: "column", alignItems: "stretch",
@@ -1140,6 +1184,13 @@ function GoStopApp() {
                 ));
             })()}
           </div>
+
+          <button onClick={copyResult} style={{ ...S.primaryBtn, marginBottom: 8,
+            background: copyDone ? "rgba(78,203,138,0.15)" : C.bg3,
+            border: `1px solid ${copyDone ? "rgba(78,203,138,0.5)" : C.border2}`,
+            color: copyDone ? C.green : C.gold2 }}>
+            {copyDone ? "✓ 복사됨!" : "📋 결과 복사"}
+          </button>
 
           <button onClick={() => {
             setRounds([]); setHandHistory([]); resetHand(); setScreen("setup");
