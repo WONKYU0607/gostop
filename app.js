@@ -166,9 +166,10 @@ function GoStopApp() {
   const [handOver,    setHandOver]    = React.useState(false);
   const [autoWinner,  setAutoWinner]  = React.useState([]);
   const [showdownWinners, setShowdownWinners] = React.useState([]);
+  const [selectingNextStarter, setSelectingNextStarter] = React.useState(false);
   const [handHistory, setHandHistory] = React.useState([]);
   const [actionLog,   setActionLog]   = React.useState([]);
-  const [prevSnapshot, setPrevSnapshot] = React.useState(null); // 직전 액션 스냅샷
+  const [prevSnapshot, setPrevSnapshot] = React.useState(null);
   const [raiseInput,  setRaiseInput]  = React.useState("");
   const [boardStage,  setBoardStage]  = React.useState(0); // 0,3,4,5
 
@@ -290,7 +291,7 @@ function GoStopApp() {
   }
 
   // ── 홀덤: 스트리트 전환 ─────────────────────────────────
-  function advanceStreetState(newBets, newTotalBets, newFolded, newAllin, newPot, newLog) {
+  function advanceStreetState(newBets, newTotalBets, newFolded, newAllin, newPot, newLog, curLastRaiser) {
     const nn = players.length;
     const alive = activePlayers(newFolded, nn);
 
@@ -321,9 +322,10 @@ function GoStopApp() {
       return;
     }
 
-    // 포스트플랍: SB부터 시작
+    // 포스트플랍: 마지막 레이즈한 사람부터 시작
     const clearedBets = Array(nn).fill(0);
-    let startIdx = (dealerIdx + 1) % nn;
+    const raiserRef = curLastRaiser !== undefined ? curLastRaiser : lastRaiser;
+    let startIdx = raiserRef >= 0 ? raiserRef : (dealerIdx + 1) % nn;
     let t2 = 0;
     while ((newFolded[startIdx] || newAllin[startIdx]) && t2 < nn) {
       startIdx = (startIdx + 1) % nn; t2++;
@@ -351,10 +353,8 @@ function GoStopApp() {
     const i      = actionIdx;
     const mb     = getMaxBet(bets);
     const callAmt = mb - bets[i];
-
-    // 액션 전 스냅샷 저장
-    setPrevSnapshot({ bets:[...bets], totalBets:[...totalBets], folded:[...folded],
-      allin:[...allin], pot, actionIdx, lastRaiser, actionLog:[...actionLog] });
+    let newLastRaiser = lastRaiser;
+    setPrevSnapshot({ bets:[...bets], totalBets:[...totalBets], folded:[...folded], allin:[...allin], pot, actionIdx, lastRaiser, actionLog:[...actionLog] });
 
     const nb  = [...bets];
     const ntb = [...totalBets];
@@ -383,14 +383,15 @@ function GoStopApp() {
       ntb[i] += total;
       np     += total;
       setLastRaiser(i);
+      newLastRaiser = i;
       log.push({ player: i, action: `레이즈 +${raiseBy.toLocaleString()}`, amount: total });
 
     } else if (action === "allin") {
       // buyIns 기준 실제 남은 칩 계산 (이전 핸드 손익 포함)
       const prevPnl    = totalAmounts[i] || 0;
       const myBuyIn    = buyIns[i] || 0;
-      const stackLeft  = myBuyIn > 0 ? (myBuyIn + prevPnl - ntb[i]) : 0;
-      const allinAmt   = myBuyIn > 0 ? Math.max(stackLeft, callAmt) : callAmt;
+      const stackLeft  = myBuyIn > 0 ? Math.max(0, myBuyIn + prevPnl - ntb[i]) : 0;
+      const allinAmt   = myBuyIn > 0 ? stackLeft : callAmt;
       nb[i]  += allinAmt;
       ntb[i] += allinAmt;
       np     += allinAmt;
@@ -417,7 +418,7 @@ function GoStopApp() {
        activeNonAllin(nf, na, nn).length <= 1);
 
     if (roundDone) {
-      advanceStreetState(nb, ntb, nf, na, np, log);
+      advanceStreetState(nb, ntb, nf, na, np, log, newLastRaiser);
     } else {
       setBets(nb); setTotalBets(ntb); setFolded(nf); setAllin(na);
       setPot(np); setActionIdx(nextIdx); setActionLog(log);
@@ -436,7 +437,7 @@ function GoStopApp() {
   }
 
   // ── 홀덤: 팟 정산 ──────────────────────────────────────
-  function settleHand() {
+  function settleHand(nextStarterIdx) {
     const nn = players.length;
     const ws = autoWinner.length > 0 ? autoWinner : showdownWinners;
     if (ws.length === 0) return;
@@ -455,8 +456,15 @@ function GoStopApp() {
       settlement,
     }]);
 
-    // 다음 핸드: 딜러 버튼 이동
-    setDealerIdx((dealerIdx + 1) % nn);
+    if (ws.length > 1 && nextStarterIdx === undefined) {
+      setSelectingNextStarter(true);
+      return;
+    }
+
+    const winner = nextStarterIdx !== undefined ? nextStarterIdx : ws[0];
+    const newDealer = ((winner - 3) % nn + nn) % nn;
+    setDealerIdx(newDealer);
+    setSelectingNextStarter(false);
     resetHand();
     setScreen("setup");
   }
@@ -909,12 +917,31 @@ function GoStopApp() {
                           </div>
                         )}
 
-                        <button onClick={settleHand}
-                          disabled={autoWinner.length === 0 && showdownWinners.length === 0}
-                          style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10,
-                            opacity: (autoWinner.length === 0 && showdownWinners.length === 0) ? 0.35 : 1 }}>
-                          정산 & 다음 핸드 →
-                        </button>
+                        {selectingNextStarter ? (
+                          <div>
+                            <div style={{ fontSize: 12, color: C.gold2, marginBottom: 6, fontWeight: "bold" }}>
+                              무승부 — 다음 핸드 첫 베팅 선을 선택하세요
+                            </div>
+                            {players.map((p, i) => (
+                              <button key={i} onClick={() => settleHand(i)} style={{
+                                display: "flex", alignItems: "center", gap: 6, width: "100%",
+                                padding: "7px 8px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
+                                border: `1px solid ${C.border2}`, background: C.bg3,
+                                color: C.text, fontFamily: "inherit", textAlign: "left",
+                              }}>
+                                <Avatar i={i} name={p} size={22} />
+                                <span style={{ fontSize: 12 }}>{p}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <button onClick={() => settleHand()}
+                            disabled={autoWinner.length === 0 && showdownWinners.length === 0}
+                            style={{ ...S.primaryBtn, marginTop: 0, fontSize: 12, padding: 10,
+                              opacity: (autoWinner.length === 0 && showdownWinners.length === 0) ? 0.35 : 1 }}>
+                            정산 & 다음 핸드 →
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
