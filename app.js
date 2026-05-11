@@ -243,14 +243,18 @@ function GoStopApp() {
 
   // ── 고스톱 점수 계산 ──────────────────────────────────────
   function calcGostopAmounts(winnerIdx, score, goCount, pibak, gwangbak, meongbak) {
-    const base = score * basePrice;
-    const goMult = goCount > 0 ? Math.pow(2, goCount) : 1;
+    // 1고=+1점, 2고=+2점, 3고부터=×2배씩
+    let finalScore = score;
+    if (goCount >= 1) finalScore += 1;
+    if (goCount >= 2) finalScore += 1;
+    if (goCount >= 3) finalScore = finalScore * Math.pow(2, goCount - 2);
+    const base = Math.round(finalScore) * basePrice;
     const amounts = Array(n).fill(0);
     let winnerTotal = 0;
     for (let i = 0; i < n; i++) {
       if (i === winnerIdx) continue;
-      let pay = base * goMult;
-      if (pibak.includes(i))   pay *= 2;
+      let pay = base;
+      if (pibak.includes(i))    pay *= 2;
       if (gwangbak.includes(i)) pay *= 2;
       if (meongbak.includes(i)) pay *= 2;
       amounts[i] = -Math.round(pay);
@@ -274,7 +278,6 @@ function GoStopApp() {
     const na = [...inputAmounts]; na[i] = Number(val) || 0; setInputAmounts(na);
   }
   function addRound() {
-    // 반자동 모드: 이긴 플레이어 선택된 경우
     if (gsWinner >= 0) {
       if (gsScore <= 0) { setInputError("점수를 입력하세요."); return; }
       const amounts = calcGostopAmounts(gsWinner, gsScore, gsGoCount, gsPibak, gsGwangbak, gsMeongbak);
@@ -282,7 +285,6 @@ function GoStopApp() {
       resetGsInput();
       return;
     }
-    // 수동 모드
     if (inputAmounts.every(a => a === 0)) { setInputError("금액을 입력하세요."); return; }
     const sum = inputAmounts.reduce((a, b) => a + b, 0);
     if (sum !== 0) { setInputError(`합계가 0이어야 합니다. 현재: ${sum.toLocaleString()}원`); return; }
@@ -847,7 +849,7 @@ function GoStopApp() {
             <>
               <div style={S.sectionLabel}>고스톱 설정</div>
               <div style={S.card}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 13, color: C.text }}>기본 단가 (원/점)</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {[100, 500, 1000].map(v => (
@@ -1269,38 +1271,50 @@ function GoStopApp() {
                         borderRadius: 8, color: C.text, outline: "none", fontFamily: "inherit" }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>고 횟수</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
+                      고 횟수 {gsGoCount > 0 && (
+                        <span style={{ color: C.gold2 }}>
+                          {gsGoCount <= 2 ? `(+${gsGoCount}점)` : `(×${Math.pow(2, gsGoCount-2)}배)`}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <button onClick={() => setGsGoCount(Math.max(0, gsGoCount - 1))}
-                        style={{ ...S.miniBtn(false, "danger"), padding: "8px 12px" }}>−</button>
-                      <span style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: "bold", color: C.gold2 }}>
-                        {gsGoCount}고{gsGoCount > 0 ? ` (×${Math.pow(2, gsGoCount)})` : ""}
+                        style={{ ...S.miniBtn(false, "danger"), padding: "8px 14px" }}>−</button>
+                      <span style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "bold", color: C.gold2 }}>
+                        {gsGoCount}고
                       </span>
                       <button onClick={() => setGsGoCount(gsGoCount + 1)}
-                        style={{ ...S.miniBtn(false, "info"), padding: "8px 12px" }}>+</button>
+                        style={{ ...S.miniBtn(false, "info"), padding: "8px 14px" }}>+</button>
                     </div>
                   </div>
                 </div>
 
                 {/* 패자별 박 선택 */}
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>박 적용 (해당 패자 선택)</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>박 (해당 패자 선택)</div>
                   {players.map((name, i) => {
                     if (i === gsWinner) return null;
-                    const hasPibak = gsPibak.includes(i);
+                    const hasPibak    = gsPibak.includes(i);
                     const hasGwangbak = gsGwangbak.includes(i);
                     const hasMeongbak = gsMeongbak.includes(i);
                     const toggle = (arr, setArr) => arr.includes(i) ? setArr(arr.filter(x => x !== i)) : setArr([...arr, i]);
+                    const bakBtnStyle = (active) => ({
+                      padding: "5px 10px", fontSize: 12, borderRadius: 8, cursor: "pointer",
+                      fontFamily: "inherit", fontWeight: active ? "bold" : "normal",
+                      background: active ? "rgba(255,255,255,0.2)" : "transparent",
+                      border: `1px solid ${active ? "white" : C.border2}`,
+                      color: active ? "white" : C.muted,
+                    });
                     return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
+                        padding: "6px 8px", borderRadius: 8,
+                        background: (hasPibak || hasGwangbak || hasMeongbak) ? "rgba(255,255,255,0.05)" : "transparent" }}>
                         <Avatar i={i} name={name} size={22} />
                         <span style={{ flex: 1, fontSize: 13 }}>{name}</span>
-                        <button onClick={() => toggle(gsPibak, setGsPibak)}
-                          style={{ ...S.miniBtn(hasPibak, "danger"), padding: "4px 8px", fontSize: 11 }}>피박</button>
-                        <button onClick={() => toggle(gsGwangbak, setGsGwangbak)}
-                          style={{ ...S.miniBtn(hasGwangbak, "danger"), padding: "4px 8px", fontSize: 11 }}>광박</button>
-                        <button onClick={() => toggle(gsMeongbak, setGsMeongbak)}
-                          style={{ ...S.miniBtn(hasMeongbak, "danger"), padding: "4px 8px", fontSize: 11 }}>멍박</button>
+                        <button onClick={() => toggle(gsPibak, setGsPibak)} style={bakBtnStyle(hasPibak)}>피박</button>
+                        <button onClick={() => toggle(gsGwangbak, setGsGwangbak)} style={bakBtnStyle(hasGwangbak)}>광박</button>
+                        <button onClick={() => toggle(gsMeongbak, setGsMeongbak)} style={bakBtnStyle(hasMeongbak)}>멍박</button>
                       </div>
                     );
                   })}
@@ -1310,10 +1324,10 @@ function GoStopApp() {
                 {gsScore > 0 && (() => {
                   const preview = calcGostopAmounts(gsWinner, gsScore, gsGoCount, gsPibak, gsGwangbak, gsMeongbak);
                   return (
-                    <div style={{ background: C.bg3, borderRadius: 8, padding: 8, marginBottom: 10 }}>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>계산 결과</div>
+                    <div style={{ background: C.bg3, borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>계산 결과 미리보기</div>
                       {players.map((name, i) => (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "2px 0" }}>
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}>
                           <span style={{ color: C.text }}>{name}</span>
                           <span style={{ fontWeight: "bold", color: preview[i] > 0 ? C.green : preview[i] < 0 ? C.red : C.muted }}>
                             {preview[i] > 0 ? "+" : ""}{preview[i].toLocaleString()}원
@@ -1358,7 +1372,8 @@ function GoStopApp() {
               </>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8,
+              borderTop: `1px solid ${C.border}`, marginTop: 4 }}>
               <button onClick={addRound} style={S.miniBtn(false, "success")}>+ 판 추가</button>
             </div>
             {inputError && <div style={{ fontSize: 12, color: C.red, marginTop: 6 }}>{inputError}</div>}
