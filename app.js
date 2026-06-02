@@ -204,6 +204,43 @@ function GoStopApp() {
 
   const n = players.length;
 
+  // ── AdMob 배너 (하단 고정) ───────────────────────────────
+  React.useEffect(() => {
+    const cap = window.Capacitor;
+    const AdMob = cap && cap.Plugins && cap.Plugins.AdMob;
+    if (!AdMob) return; // 웹/플러그인 미설치 환경에서는 그냥 통과
+    let removed = false;
+    (async () => {
+      try {
+        await AdMob.initialize();
+        if (removed) return;
+        // GDPR 동의 (EEA/영국만 폼 표시, 그 외 지역은 자동 통과)
+        try {
+          const info = await AdMob.requestConsentInfo();
+          if (!removed && info && info.isConsentFormAvailable && info.status === "REQUIRED") {
+            await AdMob.showConsentForm();
+          }
+        } catch (ce) {
+          console.log("AdMob consent error:", ce);
+        }
+        if (removed) return;
+        await AdMob.showBanner({
+          adId: "ca-app-pub-5845861200468545/4437602321", // 고스톱 하단 배너 (실제 광고단위 ID)
+          adSize: "ADAPTIVE_BANNER",
+          position: "BOTTOM_CENTER",
+          margin: 0,
+          isTesting: false, // 실제 광고
+        });
+      } catch (e) {
+        console.log("AdMob banner error:", e);
+      }
+    })();
+    return () => {
+      removed = true;
+      if (AdMob.removeBanner) AdMob.removeBanner().catch(() => {});
+    };
+  }, []);
+
   // ── 정산 합계 ────
   const totalAmounts = React.useMemo(() => {
     const arr = Array(players.length).fill(0);
@@ -621,7 +658,7 @@ function GoStopApp() {
   // 렌더
   // ──────────────────────────────────────────────────────────
   return (
-    <div style={{ width: "100%", maxWidth: "100vw", boxSizing: "border-box", padding: "12px 12px 80px", margin: "0 auto",
+    <div style={{ width: "100%", maxWidth: "100vw", boxSizing: "border-box", padding: "12px 12px 120px", margin: "0 auto",
       background: C.bg1, minHeight: "100vh", fontFamily: "'Segoe UI', sans-serif", color: C.text, overflowX: "hidden" }}>
 
       {/* 헤더 */}
